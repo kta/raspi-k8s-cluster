@@ -1,0 +1,85 @@
+name: PR Auto Labeler
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: Auto Label PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Label based on changed files
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.issue.number;
+            
+            // Get changed files
+            const files = await github.rest.pulls.listFiles({
+              owner,
+              repo,
+              pull_number: prNumber
+            });
+            
+            const labels = new Set();
+            
+            for (const file of files.data) {
+              const path = file.filename;
+              
+              // Terraform関連
+              if (path.startsWith('terraform/')) {
+                labels.add('terraform');
+                
+                if (path.includes('/modules/vm/')) labels.add('module:vm');
+                if (path.includes('/modules/kubernetes/')) labels.add('module:kubernetes');
+                if (path.includes('/modules/argocd/')) labels.add('module:argocd');
+              }
+              
+              // Cloud-Init関連
+              if (path.startsWith('templates/')) {
+                labels.add('cloud-init');
+              }
+              
+              // ドキュメント関連
+              if (path.startsWith('docs/') || path === 'README.md' || path === 'TODO.md') {
+                labels.add('documentation');
+              }
+              
+              // ArgoCD関連
+              if (path.startsWith('argocd-apps/')) {
+                labels.add('argocd');
+              }
+              
+              // CI/CD関連
+              if (path.startsWith('.github/workflows/')) {
+                labels.add('ci/cd');
+              }
+              
+              // Atlantis関連
+              if (path === 'atlantis.yaml' || path === 'docker-compose.atlantis.yaml') {
+                labels.add('atlantis');
+              }
+            }
+            
+            // Add labels
+            if (labels.size > 0) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: prNumber,
+                labels: Array.from(labels)
+              });
+              
+              console.log(`Added labels: ${Array.from(labels).join(', ')}`);
+            }

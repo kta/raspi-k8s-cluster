@@ -1,0 +1,248 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - 'templates/**'
+      - '.github/workflows/terraform-ci.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - 'templates/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.10.5"
+  TFLINT_VERSION: "v0.54.0"
+
+jobs:
+  terraform-checks:
+    name: Terraform Validate & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: TFLint Init
+        run: tflint --init
+
+      - name: TFLint Check
+        id: tflint
+        run: tflint --recursive --format compact
+        continue-on-error: true
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          FMT_OUTCOME: ${{ steps.fmt.outcome }}
+          INIT_OUTCOME: ${{ steps.init.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          TFLINT_OUTCOME: ${{ steps.tflint.outcome }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `### Terraform CI Results 🚀
+
+            | Check | Status |
+            |-------|--------|
+            | 🎨 Format | ${ process.env.FMT_OUTCOME === 'success' ? '✅ Pass' : '❌ Fail' } |
+            | 🔧 Init | ${ process.env.INIT_OUTCOME === 'success' ? '✅ Pass' : '❌ Fail' } |
+            | ✔️ Validate | ${ process.env.VALIDATE_OUTCOME === 'success' ? '✅ Pass' : '❌ Fail' } |
+            | 🔍 TFLint | ${ process.env.TFLINT_OUTCOME === 'success' ? '✅ Pass' : '⚠️ Warning' } |
+
+            **Pushed by:** @${{ github.actor }}
+            **Action:** \`${{ github.event_name }}\``;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Fail if checks failed
+        if: steps.fmt.outcome != 'success' || steps.validate.outcome != 'success'
+        run: |
+          echo "::error::Terraform checks failed. Please run 'terraform fmt' and fix validation errors."
+          exit 1
+
+  security-scan:
+    name: Security Scan (tfsec)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+          soft_fail: true
+          format: sarif
+          additional_args: --minimum-severity MEDIUM
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check README exists
+        run: |
+          if [ ! -f README.md ]; then
+            echo "::error::README.md not found"
+            exit 1
+          fi
+
+      - name: Check required documentation
+        run: |
+          REQUIRED_DOCS=(
+            "docs/setup.md"
+            "docs/troubleshooting.md"
+            "docs/maintenance.md"
+            "docs/atlantis-setup.md"
+            "docs/argocd-setup.md"
+          )
+          
+          for doc in "${REQUIRED_DOCS[@]}"; do
+            if [ ! -f "$doc" ]; then
+              echo "::error::Required documentation '$doc' not found"
+              exit 1
+            fi
+          done
+          
+          echo "✅ All required documentation files exist"
+
+      - name: Check Terraform examples
+        run: |
+          if [ ! -f terraform/terraform.tfvars.example ]; then
+            echo "::error::terraform.tfvars.example not found"
+            exit 1
+          fi
+          echo "✅ Terraform example configuration exists"
+
+  argocd-manifests-check:
+    name: ArgoCD Manifests Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.35.0'
+
+      - name: Validate ArgoCD manifests
+        run: |
+          echo "Validating ArgoCD Application manifests..."
+          
+          for manifest in argocd-apps/**/*.yaml; do
+            if [ -f "$manifest" ]; then
+              echo "Checking $manifest..."
+              kubectl --dry-run=client apply -f "$manifest" || exit 1
+            fi
+          done
+          
+          echo "✅ All ArgoCD manifests are valid"
+
+  atlantis-config-check:
+    name: Atlantis Configuration Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate atlantis.yaml
+        run: |
+          if [ ! -f atlantis.yaml ]; then
+            echo "::error::atlantis.yaml not found"
+            exit 1
+          fi
+          
+          # Basic YAML syntax check
+          python3 -c "import yaml; yaml.safe_load(open('atlantis.yaml'))" || exit 1
+          
+          echo "✅ atlantis.yaml is valid"
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: 
+      - terraform-checks
+      - security-scan
+      - docs-check
+      - argocd-manifests-check
+      - atlantis-config-check
+    if: always()
+
+    steps:
+      - name: Check job results
+        run: |
+          echo "### CI Summary"
+          echo "Terraform Checks: ${{ needs.terraform-checks.result }}"
+          echo "Security Scan: ${{ needs.security-scan.result }}"
+          echo "Documentation: ${{ needs.docs-check.result }}"
+          echo "ArgoCD Manifests: ${{ needs.argocd-manifests-check.result }}"
+          echo "Atlantis Config: ${{ needs.atlantis-config-check.result }}"
+          
+          if [ "${{ needs.terraform-checks.result }}" != "success" ] || \
+             [ "${{ needs.docs-check.result }}" != "success" ] || \
+             [ "${{ needs.argocd-manifests-check.result }}" != "success" ] || \
+             [ "${{ needs.atlantis-config-check.result }}" != "success" ]; then
+            echo "::error::CI checks failed"
+            exit 1
+          fi
+          
+          echo "✅ All CI checks passed!"

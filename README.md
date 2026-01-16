@@ -84,6 +84,17 @@ kubectl version --client
 
 - [Copilot Instructions](./.github/copilot-instructions.md)
 
+## 🔄 CI/CD
+
+### GitHub Actions
+このプロジェクトは以下の自動チェックを実行します：
+
+- **Terraform CI** - コードフォーマット、Validate、Lint、セキュリティスキャン
+- **PR Auto Labeler** - 変更ファイルに基づいた自動ラベリング
+- **Release** - タグ作成時の自動リリース生成
+
+詳細は [GitHub Actions ドキュメント](./.github/workflows/README.md) を参照してください。
+
 ---
 
 **Built with ❤️ for Raspberry Pi Kubernetes**

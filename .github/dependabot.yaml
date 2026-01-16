@@ -1,0 +1,50 @@
+version: 2
+updates:
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
+  # Terraform provider dependencies
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "terraform"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    ignore:
+      # Proxmox providerは手動更新を推奨（互換性の問題）
+      - dependency-name: "bpg/proxmox"
+        update-types: ["version-update:semver-major"]
+
+  # Docker dependencies (Atlantis)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "atlantis"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"

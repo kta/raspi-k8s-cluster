@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          echo "## Changes" > CHANGELOG.md
+          
+          # Get previous tag
+          PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "First release"
+            git log --pretty=format:"- %s (%h)" >> CHANGELOG.md
+          else
+            echo "Changes since $PREV_TAG"
+            git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+          fi
+          
+          cat CHANGELOG.md
+
+      - name: Create Release Archive
+        run: |
+          # Terraformファイルのみをアーカイブ（.terraform, .terraform.lock.hclは除外）
+          tar -czf terraform-config.tar.gz \
+            --exclude='terraform/.terraform' \
+            --exclude='terraform/.terraform.lock.hcl' \
+            --exclude='terraform/modules/*/kubeconfig.yaml' \
+            --exclude='terraform/modules/*/join-*.sh' \
+            terraform/ templates/ argocd-apps/
+          
+          # ドキュメントをアーカイブ
+          tar -czf documentation.tar.gz docs/ README.md TODO.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            terraform-config.tar.gz
+            documentation.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Output Release Info
+        run: |
+          echo "✅ Release ${{ github.ref_name }} created successfully!"
+          echo "📦 Artifacts: terraform-config.tar.gz, documentation.tar.gz"
