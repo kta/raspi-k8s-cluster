@@ -1,0 +1,34 @@
+terraform {
+  required_version = ">= 1.10.0"
+
+  required_providers {
+    proxmox = {
+      source  = "bpg/proxmox"
+      version = "~> 0.71.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.17.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.35.0"
+    }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.4.0"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.12.0"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2.0"
+    }
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.3.0"
+    }
+  }
+}

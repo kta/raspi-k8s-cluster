@@ -1,0 +1,32 @@
+version: 3
+
+projects:
+  - name: raspi-k8s-cluster
+    dir: .
+    workspace: default
+    terraform_version: v1.10.5
+    autoplan:
+      when_modified: ["*.tf", "**/*.tf", "**/*.tftpl"]
+      enabled: true
+    apply_requirements: [approved, mergeable]
+    workflow: terraform
+
+workflows:
+  terraform:
+    plan:
+      steps:
+        - init
+        - plan:
+            extra_args: ["-lock=true"]
+    apply:
+      steps:
+        - apply:
+            extra_args: ["-auto-approve"]
+
+allowed_regexp_prefixes:
+  - terraform/
+
+# Atlantis コマンドの使い方:
+# - コメントに "atlantis plan" と書くと terraform plan が実行されます
+# - コメントに "atlantis apply" と書くと terraform apply が実行されます
+# - PR がマージされると自動的に apply されます（オプション）

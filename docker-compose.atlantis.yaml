@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  atlantis:
+    image: ghcr.io/runatlantis/atlantis:latest
+    container_name: atlantis
+    ports:
+      - "4141:4141"
+    environment:
+      # GitHub 設定
+      - ATLANTIS_GH_USER=${GITHUB_USERNAME}
+      - ATLANTIS_GH_TOKEN=${GITHUB_TOKEN}
+      - ATLANTIS_GH_WEBHOOK_SECRET=${ATLANTIS_WEBHOOK_SECRET}
+      
+      # Atlantis 設定
+      - ATLANTIS_REPO_ALLOWLIST=github.com/${GITHUB_USERNAME}/*
+      - ATLANTIS_ATLANTIS_URL=http://localhost:4141
+      - ATLANTIS_DATA_DIR=/atlantis-data
+      
+      # Proxmox API（Terraform用）
+      - PM_API_URL=${PM_API_URL}
+      - PM_API_TOKEN_ID=${PM_API_TOKEN_ID}
+      - PM_API_TOKEN_SECRET=${PM_API_TOKEN_SECRET}
+      
+      # Terraform 変数
+      - TF_VAR_proxmox_api_token_id=${PM_API_TOKEN_ID}
+      - TF_VAR_proxmox_api_token_secret=${PM_API_TOKEN_SECRET}
+      - TF_VAR_github_username=${GITHUB_USERNAME}
+    
+    volumes:
+      - atlantis-data:/atlantis-data
+      - ~/.ssh:/root/.ssh:ro
+    
+    restart: unless-stopped
+    
+    command: server
+
+volumes:
+  atlantis-data:

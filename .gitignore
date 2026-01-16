@@ -1,0 +1,46 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+.kube/
+
+# Secrets & Credentials
+.env
+.env.*
+*.pem
+*.key
+!*.pub
+secrets/
+credentials/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Atlantis
+atlantis-data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

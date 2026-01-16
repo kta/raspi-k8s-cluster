@@ -1,0 +1,30 @@
+# SSH 設定
+proxmox_api_token_id      = "root@pam!terraform"
+proxmox_api_token_secret  = "your-secret-token"
+
+# GitHub ユーザー名（SSH 公開鍵取得用）
+github_username = "your-github-username"
+
+# SSH 秘密鍵パス
+ssh_private_key_path = "~/.ssh/id_rsa"
+
+# ネットワーク設定（必要に応じて変更）
+network_gateway = "192.168.100.1"
+network_dns     = "192.168.100.1"
+kube_vip        = "192.168.100.200"
+
+# ネットワークインターフェース（VM によって異なる場合があります）
+# Debian Cloud Image では通常 eth0 または ens18
+network_interface = "eth0"
+
+# VM リソース設定（必要に応じて変更）
+vm_cpu_cores    = 2
+vm_memory_mb    = 2048
+vm_disk_size_gb = 20
+
+# Kubernetes 設定
+kubernetes_version          = "1.35"
+kubernetes_pod_network_cidr = "10.244.0.0/16"
+
+# タイムゾーン
+timezone = "Asia/Tokyo"
