@@ -1,0 +1,44 @@
+name: Lint Code
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # --- Job 1: Ansibleのチェック ---
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install ansible-lint ansible
+
+      - name: Run ansible-lint
+        run: |
+          # site.yml と reset.yml をチェック
+          ansible-lint site.yml reset.yml
+
+  # --- Job 2: ShellScriptのチェック ---
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          severity: 'warning' # error, warning, info, style

@@ -1,0 +1,11 @@
+profile: basic
+# 警告レベルの調整
+warn_list:
+  - experimental
+  - no-handler
+# 今回の構成に合わないルールを無視
+skip_list:
+  - no-changed-when      # shell実行時に「変更があったか判定しろ」という警告を無視
+  - risky-shell-pipe     # パイプ処理の警告を無視
+  - fqcn                 # ansible.builtin.copy と書けという強制を無視
+  - command-instead-of-shell # shellじゃなくてcommandを使えという警告を無視

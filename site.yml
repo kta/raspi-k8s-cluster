@@ -1,0 +1,77 @@
+---
+- name: Distribute Scripts and Setup Nodes
+  hosts: all_masters
+  become: true
+
+  tasks:
+    # --- 共通セットアップ ---
+    - name: Copy common script
+      copy:
+        src: scripts/common_setup.sh
+        dest: /tmp/common_setup.sh
+        mode: '0755'
+
+    - name: Wait for dpkg lock to be released
+      shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
+      changed_when: false
+
+    - name: Run common setup
+      shell: >
+        /tmp/common_setup.sh
+        {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
+      changed_when: true
+      retries: 5
+      delay: 10
+      register: result
+      until: result.rc == 0
+
+# --- Primary Master: Init実行とファイル読み取り ---
+- name: Initialize Primary Master
+  hosts: primary_master
+  become: true
+  tasks:
+    - name: Copy init scripts
+      copy:
+        src: "{{ item }}"
+        dest: "/tmp/{{ item | basename }}"
+        mode: '0755'
+      loop:
+        - scripts/primary_init.sh
+        - scripts/cni_setup.sh
+
+    - name: Run init script (Create Cluster & Generate Token File)
+      shell: /tmp/primary_init.sh {{ vip }} {{ haproxy_port }}
+      changed_when: true
+
+    - name: Setup CNI on primary master
+      shell: /tmp/cni_setup.sh
+      changed_when: true
+
+    - name: Read Join Command from file
+      slurp:
+        src: /tmp/k8s_join_command.sh
+      register: join_file_content
+
+    - name: Decode and Store Join Command
+      set_fact:
+        join_cmd_str: "{{ join_file_content['content'] | b64decode | trim }}"
+
+    - name: Share token with other nodes
+      add_host:
+        name: "TOKEN_HOLDER"
+        join_cmd: "{{ join_cmd_str }}"
+
+# --- Secondary Masters: 参加 ---
+- name: Join Secondary Masters
+  hosts: secondary_masters
+  become: true
+  tasks:
+    - name: Copy secondary init script
+      copy:
+        src: scripts/secondary_init.sh
+        dest: /tmp/secondary_init.sh
+        mode: '0755'
+
+    - name: Run secondary init script
+      shell: /tmp/secondary_init.sh "{{ hostvars['TOKEN_HOLDER']['join_cmd'] }}"
+      changed_when: true

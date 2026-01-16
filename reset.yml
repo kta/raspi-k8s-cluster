@@ -1,0 +1,51 @@
+---
+- name: Reset and Cleanup Cluster Nodes
+  hosts: all_masters
+  become: true
+  tasks:
+    - name: Reset Kubeadm (Force)
+      command: kubeadm reset -f
+      ignore_errors: true
+
+    - name: Stop and Disable Services
+      service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop: [haproxy, keepalived]
+      ignore_errors: true
+
+    - name: Remove Packages (Optional - Clean slate)
+      apt:
+        name: [haproxy, keepalived, kubelet, kubeadm, kubectl]
+        state: absent
+        purge: true
+      ignore_errors: true
+
+    - name: Clean CNI & IP Tables
+      shell: |
+        rm -rf /etc/cni/net.d
+        iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+      ignore_errors: true
+
+    - name: Remove Config Dirs & Files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/kubernetes
+        - /var/lib/etcd
+        - /var/lib/kubelet
+        - /root/.kube
+        - /home/{{ ansible_user }}/.kube
+        - /etc/haproxy
+        - /etc/keepalived
+
+    - name: Remove Temporary Scripts & Tokens
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/common_setup.sh
+        - /tmp/primary_init.sh
+        - /tmp/k8s_join_command.sh
