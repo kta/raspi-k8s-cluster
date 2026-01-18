@@ -67,7 +67,6 @@ provisioner:
   config_options:
     defaults:
       stdout_callback: yaml
-      # Docker環境ではRebootができないためスキップ
       skip_tags: "reboot,firmware_check"
   inventory:
     group_vars:

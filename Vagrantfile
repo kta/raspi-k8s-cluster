@@ -12,6 +12,9 @@ Vagrant.configure("2") do |config|
   config.vm.define "vm-node1" do |node|
     node.vm.hostname = "vm-node1"
     node.vm.network "private_network", ip: "192.168.56.101"
+    # ArgoCD NodePort forwarding
+    node.vm.network "forwarded_port", guest: 30080, host: 30080, host_ip: "127.0.0.1"
+    node.vm.network "forwarded_port", guest: 30443, host: 30443, host_ip: "127.0.0.1"
   end
 
   # --- Node 2 ---

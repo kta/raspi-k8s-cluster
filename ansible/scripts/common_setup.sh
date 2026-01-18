@@ -169,6 +169,22 @@ fi
 mkdir -p /usr/lib/cni
 ln -sf /opt/cni/bin/* /usr/lib/cni/ 2>/dev/null || true
 
+# --- 4.6. kubelet node-ip設定 ---
+# 指定されたインターフェースからIPアドレスを取得してkubeletに設定
+NODE_IP=$(ip -4 addr show "${INTERFACE}" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1)
+if [ -n "${NODE_IP}" ]; then
+	echo ">>> Configuring kubelet with node-ip: ${NODE_IP}"
+	mkdir -p /etc/default
+	echo "KUBELET_EXTRA_ARGS=--node-ip=${NODE_IP}" >/etc/default/kubelet
+	# kubeletがすでに起動している場合は再起動
+	systemctl daemon-reload
+	if systemctl is-active --quiet kubelet; then
+		systemctl restart kubelet
+	fi
+else
+	echo "⚠️  Warning: Could not determine IP for interface ${INTERFACE}"
+fi
+
 # --- 5. Keepalived設定 ---
 mkdir -p /etc/keepalived
 mkdir -p /etc/default
