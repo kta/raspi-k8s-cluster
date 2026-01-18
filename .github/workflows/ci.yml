@@ -15,13 +15,12 @@ on:
   workflow_dispatch:
 
 env:
-  # Ansibleのログを見やすくする設定
   ANSIBLE_FORCE_COLOR: '1'
   PY_COLORS: '1'
 
 jobs:
   # ------------------------------------------------------------------
-  # Job 1: Lint & Static Analysis (静的解析)
+  # Job 1: Lint & Static Analysis
   # ------------------------------------------------------------------
   lint:
     name: 🛡️ Lint & Static Analysis
@@ -39,8 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # 古い molecule-docker ではなく、新しいプラグイン構成を使用
-          pip install "molecule>=6.0.0" "molecule-plugins[docker]" ansible-lint yamllint ansible
+          pip install ansible-lint yamllint
 
       - name: Run yamllint
         run: yamllint -c .yamllint ansible/
@@ -56,7 +54,6 @@ jobs:
           sudo apt-get install -y shellcheck
 
       - name: Run shellcheck on scripts
-        # シェルスクリプトの構文エラーをチェック
         run: |
           find ansible/scripts -name "*.sh" -type f -exec shellcheck {} +
 
@@ -83,21 +80,19 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      # Dockerが正常に動作しているか確認（デバッグ用）
+      # Dockerが動いているか念のため確認
       - name: Verify Docker Engine
         run: docker info
 
       - name: Install Molecule & Drivers
         run: |
           python -m pip install --upgrade pip
-          # 【重要】ここで明示的に docker プラグインを入れることでエラーを回避
-          pip install "molecule>=6.0.0" "molecule-plugins[docker]" ansible docker
+          pip install "ansible>=9.0.0" "molecule>=6.0.0" "molecule-plugins[docker]" "docker>=7.0.0"
 
       - name: Display tool versions
         run: |
           molecule --version
           ansible --version
-          docker --version
 
       - name: Run Molecule tests
         working-directory: ansible
@@ -106,7 +101,6 @@ jobs:
         run: |
           molecule test --scenario-name ${{ matrix.scenario }}
 
-      # テスト失敗時のみログをアップロードして分析できるようにする
       - name: Upload Molecule logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
