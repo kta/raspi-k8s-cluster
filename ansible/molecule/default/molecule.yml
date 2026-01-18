@@ -1,10 +1,7 @@
----
 dependency:
   name: galaxy
-
 driver:
   name: docker
-
 platforms:
   # --- Node 1: Primary Master ---
   - name: pi-node1
@@ -25,7 +22,6 @@ platforms:
     # 代わりにDockerのDNS機能(hostname resolution)を使います。
     networks:
       - name: k8s-cluster-net
-
   # --- Node 2: Secondary Master ---
   - name: pi-node2
     image: geerlingguy/docker-${MOLECULE_DISTRO:-debian13}-ansible:latest
@@ -43,7 +39,6 @@ platforms:
       - secondary_masters
     networks:
       - name: k8s-cluster-net
-
   # --- Node 3: Secondary Master ---
   - name: pi-node3
     image: geerlingguy/docker-${MOLECULE_DISTRO:-debian13}-ansible:latest
@@ -61,7 +56,6 @@ platforms:
       - secondary_masters
     networks:
       - name: k8s-cluster-net
-
 provisioner:
   name: ansible
   config_options:
@@ -72,29 +66,23 @@ provisioner:
     group_vars:
       all:
         k8s_version: "1.29"
-        
         # 【重要1】VIPを localhost (127.0.0.1) に設定
         # Docker内では本物のVRRP(IP移動)は動かないため、
         # 各ノードが「自分自身(localhost)」をVIPだと思って動くように騙します。
         # これで Verify テストが全ノードで成功します。
         vip: "127.0.0.1"
-        
         interface: "eth0"
         haproxy_port: "8443"
-        
         # 【重要2】IPアドレスのリストを「ホスト名」に変更
         # これにより、HAProxyの設定ファイル(haproxy.cfg)には以下のように書かれます：
         #   server k8s-1 pi-node1:6443 check
         #   server k8s-2 pi-node2:6443 check
         # Docker DNSがこれを解決してくれるので、実質的に固定IPと同じ動きをします。
         node_ips: "pi-node1,pi-node2,pi-node3"
-        
         # CI環境判定用フラグ
         is_ci_environment: true
-
 verifier:
   name: ansible
-
 scenario:
   name: default
   test_sequence:

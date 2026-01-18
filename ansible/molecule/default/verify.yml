@@ -1,4 +1,3 @@
----
 - name: Verify Cluster Setup
   hosts: all_masters
   become: true
@@ -9,25 +8,21 @@
         path: "/tmp/common_setup.sh"
       register: common_script
       failed_when: not common_script.stat.exists
-
     # --- 2. サービス設定の確認 ---
     - name: Check HAProxy config exists
       stat:
         path: /etc/haproxy/haproxy.cfg
       register: haproxy_conf
       failed_when: not haproxy_conf.stat.exists
-
     - name: Check Keepalived config exists
       stat:
         path: /etc/keepalived/keepalived.conf
       register: keepalived_conf
       failed_when: not keepalived_conf.stat.exists
-
     # --- 3. 変数展開の確認 ---
     - name: Verify HAProxy config contains correct VIP
       command: grep "bind *:8443" /etc/haproxy/haproxy.cfg
       changed_when: false
-
     - name: Verify Keepalived config contains correct Priority
       shell: |
         if [ "{{ inventory_hostname }}" == "pi-node1" ]; then
@@ -36,11 +31,9 @@
           grep "priority 100" /etc/keepalived/keepalived.conf
         fi
       changed_when: false
-
-    # --- 4. 実行完了の確認 ---
-    # Kubeadmをモック化したため、モックが生成するはずのファイルがあるか確認
-    # これにより「スクリプトの条件分岐が正しく通り、kubeadm init/join コマンドまで到達したか」がわかる
-
+      # --- 4. 実行完了の確認 ---
+      # Kubeadmをモック化したため、モックが生成するはずのファイルがあるか確認
+      # これにより「スクリプトの条件分岐が正しく通り、kubeadm init/join コマンドまで到達したか」がわかる
 - name: Verify Primary Node Specifics
   hosts: primary_master
   become: true
@@ -50,13 +43,11 @@
         path: /etc/kubernetes/admin.conf
       register: admin_conf
       failed_when: not admin_conf.stat.exists
-
     - name: Check if join token file was created
       stat:
         path: /tmp/k8s_join_command.sh
       register: token_file
       failed_when: not token_file.stat.exists
-
 - name: Verify Secondary Node Specifics
   hosts: secondary_masters
   become: true
