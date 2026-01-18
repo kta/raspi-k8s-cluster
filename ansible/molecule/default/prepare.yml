@@ -2,95 +2,127 @@
 - name: Prepare Test Environment (Mocking Hardware)
   hosts: all
   become: true
+  gather_facts: false  # 高速化のため最初はFacts収集しない
   tasks:
-    - name: Update apt cache
+    # --- 1. Aptロックの解放待ち (起動直後の競合回避) ---
+    - name: Wait for apt lock to be released
+      raw: |
+        while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+          echo "Waiting for apt lock..."
+          sleep 2
+        done
+      changed_when: false
+
+    - name: Update apt cache (with retry)
       apt:
         update_cache: true
         cache_valid_time: 3600
+      register: apt_result
+      until: apt_result is success
+      retries: 3
+      delay: 5
 
     - name: Install required tools for testing
       apt:
-        name: [curl, iproute2, sudo, systemd, ca-certificates]
+        name: [curl, iproute2, sudo, systemd, ca-certificates, procps]
         state: present
 
-    # --- Hardware Mocking (ハードウェア操作の無効化) ---
-    
-    - name: Create dummy /boot/cmdline.txt (Prevent grep fail)
-      file:
-        path: /boot/cmdline.txt
-        state: touch
-        mode: '0644'
-      failed_when: false
-
-    - name: Create dummy /boot/firmware directory
+    # --- 2. Hardware Mocking (ハードウェア操作の無効化) ---
+    - name: Ensure /boot/firmware directory exists
       file:
         path: /boot/firmware
         state: directory
+        mode: '0755'
 
-    - name: Create dummy /boot/firmware/cmdline.txt
+    - name: Create dummy cmdline.txt files
       file:
-        path: /boot/firmware/cmdline.txt
+        path: "{{ item }}"
         state: touch
         mode: '0644'
+      loop:
+        - /boot/cmdline.txt
+        - /boot/firmware/cmdline.txt
 
-    # --- System Command Mocking (コマンドのモック化) ---
+    # --- 3. System Command Mocking (コマンドのモック化) ---
+    # 既存のバイナリがあると上書きでエラーになることがあるため、先に削除する
+    - name: Remove existing system binaries for mocking
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /sbin/modprobe
+        - /usr/sbin/modprobe
+        - /sbin/swapoff
+        - /usr/sbin/swapoff
+        - /sbin/sysctl
+        - /usr/sbin/sysctl
 
-    - name: Mock 'modprobe' command (Docker has no kernel modules)
+    # どこから呼ばれてもいいように /usr/bin, /usr/sbin 両方にモックを配置
+    - name: Mock 'modprobe' (Kernel modules)
       copy:
         content: |
           #!/bin/sh
           echo "[MOCK] modprobe $@"
           exit 0
-        dest: /sbin/modprobe
+        dest: "{{ item }}"
         mode: '0755'
+      loop:
+        - /sbin/modprobe
+        - /usr/sbin/modprobe
 
-    - name: Mock 'swapoff' command
+    - name: Mock 'swapoff' (Swap)
       copy:
         content: |
           #!/bin/sh
           echo "[MOCK] swapoff $@"
           exit 0
-        dest: /sbin/swapoff
+        dest: "{{ item }}"
         mode: '0755'
+      loop:
+        - /sbin/swapoff
+        - /usr/sbin/swapoff
 
-    - name: Mock 'sysctl' to avoid readonly filesystem errors
+    - name: Mock 'sysctl' (Kernel params)
       copy:
         content: |
           #!/bin/sh
           echo "[MOCK] sysctl $@"
           exit 0
-        dest: /sbin/sysctl
+        dest: "{{ item }}"
         mode: '0755'
-        force: true
+      loop:
+        - /sbin/sysctl
+        - /usr/sbin/sysctl
 
     - name: Ensure /etc/fstab exists
       file:
         path: /etc/fstab
         state: touch
 
-    # --- Kubeadm Bypass (重すぎる処理の回避) ---
-    
-    # kubeadm init はDocker内ではcgroup等の関係で非常に困難。
-    # そこで、kubeadmコマンド自体をモック化し、「成功したふり」をさせて
-    # Ansibleのフロー（ファイルの生成や変数の受け渡し）が正しく動くかを確認する。
-    
+    # --- 4. Kubeadm Bypass (構築プロセスのモック化) ---
     - name: Mock 'kubeadm' command
       copy:
         content: |
           #!/bin/bash
+          # ログを出力して実行されたことを証明する
+          echo "[MOCK] kubeadm execution: $@" >> /tmp/kubeadm_mock.log
+          
           if [[ "$@" == *"init"* ]]; then
             echo "[MOCK] kubeadm init executed"
-            # ダミーのadmin.confを作成
             mkdir -p /etc/kubernetes
             touch /etc/kubernetes/admin.conf
-            # ダミーのUpload cert keyを出力
+            # 証明書キーのダミー出力
             echo "1234567890abcdef1234567890abcdef"
+            
           elif [[ "$@" == *"token create"* ]]; then
-            echo "kubeadm join 172.18.0.100:8443 --token abcdef.0123456789abcdef --discovery-token-ca-cert-hash sha256:1234567890abcdef"
+            # Joinコマンドのダミー出力
+            echo "kubeadm join 127.0.0.1:8443 --token abcdef.0123456789abcdef --discovery-token-ca-cert-hash sha256:1234567890abcdef"
+            
           elif [[ "$@" == *"join"* ]]; then
              echo "[MOCK] kubeadm join executed"
-             # ダミーのkubelet conf作成（参加成功の証）
+             mkdir -p /etc/kubernetes
              touch /etc/kubernetes/kubelet.conf
+             
           else
             echo "[MOCK] kubeadm other command"
           fi
