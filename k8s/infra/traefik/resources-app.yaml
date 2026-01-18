@@ -9,7 +9,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_USERNAME/raspi-k8s-cluster.git
+    repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
     path: k8s/infra/traefik/resources
 
