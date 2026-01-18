@@ -1,0 +1,143 @@
+---
+# Converge playbook for Molecule testing
+# This is a simplified version of site.yml for CI testing
+- name: Prepare test environment
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      changed_when: false
+
+    - name: Install basic dependencies
+      apt:
+        name:
+          - curl
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+          - gnupg
+          - lsb-release
+        state: present
+
+- name: Distribute Scripts and Setup Nodes
+  hosts: all_masters
+  become: true
+  tasks:
+    # --- Copy scripts ---
+    - name: Copy common script
+      copy:
+        src: "{{ playbook_dir }}/../../scripts/common_setup.sh"
+        dest: /tmp/common_setup.sh
+        mode: '0755'
+
+    - name: Copy init scripts
+      copy:
+        src: "{{ playbook_dir }}/../../scripts/{{ item }}"
+        dest: "/tmp/{{ item }}"
+        mode: '0755'
+      loop:
+        - primary_init.sh
+        - secondary_init.sh
+        - cni_setup.sh
+
+    # --- Validate scripts (shellcheck simulation) ---
+    - name: Check if scripts are executable
+      stat:
+        path: "/tmp/{{ item }}"
+      register: script_stats
+      loop:
+        - common_setup.sh
+        - primary_init.sh
+        - secondary_init.sh
+        - cni_setup.sh
+
+    - name: Verify all scripts are executable
+      assert:
+        that:
+          - item.stat.exists
+          - item.stat.executable
+        fail_msg: "Script {{ item.item }} is not executable"
+      loop: "{{ script_stats.results }}"
+
+    # --- Test script parameters (dry-run simulation) ---
+    - name: Display common setup parameters
+      debug:
+        msg: >
+          Would run: /tmp/common_setup.sh
+          {{ vip }} {{ interface }} {{ priority }} {{ state }}
+          {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
+
+    # --- Install and verify basic dependencies ---
+    # Note: In CI mode, we skip actual kubeadm init/join
+    # Instead, we verify that necessary packages can be installed
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        update_cache: true
+
+    - name: Install containerd (test dependency installation)
+      apt:
+        name: containerd.io
+        state: present
+      register: containerd_install
+
+    - name: Verify containerd is installed
+      command: containerd --version
+      changed_when: false
+      register: containerd_version
+
+    - name: Display containerd version
+      debug:
+        var: containerd_version.stdout
+
+# Primary master specific tasks
+- name: Test Primary Master Setup
+  hosts: primary_master
+  become: true
+  tasks:
+    - name: Verify primary init script exists
+      stat:
+        path: /tmp/primary_init.sh
+      register: primary_script
+
+    - name: Assert primary init script is ready
+      assert:
+        that:
+          - primary_script.stat.exists
+          - primary_script.stat.executable
+        success_msg: "Primary init script is ready for execution"
+
+    - name: Display primary init command
+      debug:
+        msg: "Would run: /tmp/primary_init.sh {{ vip }} {{ haproxy_port }}"
+
+# Secondary masters specific tasks
+- name: Test Secondary Masters Setup
+  hosts: secondary_masters
+  become: true
+  tasks:
+    - name: Verify secondary init script exists
+      stat:
+        path: /tmp/secondary_init.sh
+      register: secondary_script
+
+    - name: Assert secondary init script is ready
+      assert:
+        that:
+          - secondary_script.stat.exists
+          - secondary_script.stat.executable
+        success_msg: "Secondary init script is ready for execution"
+
+    - name: Display what secondary init would do
+      debug:
+        msg: "Would run: /tmp/secondary_init.sh <join_command>"

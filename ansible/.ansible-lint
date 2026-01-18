@@ -1,11 +1,29 @@
-profile: basic
-# 警告レベルの調整
+---
+# ansible-lint configuration
+skip_list:
+  - yaml[line-length]  # Allow long lines in some cases
+  - command-instead-of-module  # We use shell scripts intentionally
+  - command-instead-of-shell  # We need shell for complex commands
+  - risky-shell-pipe  # Our scripts handle errors appropriately
+  - no-changed-when  # Some commands are intentionally marked as changed
+  - package-latest  # Version pinning handled in variables
+
+exclude_paths:
+  - molecule/
+  - .github/
+  - .vagrant/
+  - inventory/vagrant/
+
 warn_list:
   - experimental
   - no-handler
-# 今回の構成に合わないルールを無視
-skip_list:
-  - no-changed-when      # shell実行時に「変更があったか判定しろ」という警告を無視
-  - risky-shell-pipe     # パイプ処理の警告を無視
-  - fqcn                 # ansible.builtin.copy と書けという強制を無視
-  - command-instead-of-shell # shellじゃなくてcommandを使えという警告を無視
+
+# Enable specific rules
+enable_list:
+  - yaml
+  - args
+  - name[casing]
+  - name[missing]
+
+# Use default profile
+profile: moderate

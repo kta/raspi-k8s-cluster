@@ -1,0 +1,130 @@
+---
+# Verify playbook - tests to ensure the setup is correct
+- name: Verify setup on all nodes
+  hosts: all
+  become: true
+  tasks:
+    # --- Script verification ---
+    - name: Verify all required scripts exist
+      stat:
+        path: "/tmp/{{ item }}"
+      register: scripts_check
+      failed_when: not scripts_check.stat.exists
+      loop:
+        - common_setup.sh
+        - primary_init.sh
+        - secondary_init.sh
+        - cni_setup.sh
+
+    - name: Verify scripts have correct permissions
+      stat:
+        path: "/tmp/{{ item }}"
+      register: script_perms
+      failed_when: not script_perms.stat.executable
+      loop:
+        - common_setup.sh
+        - primary_init.sh
+        - secondary_init.sh
+        - cni_setup.sh
+
+    # --- Package verification ---
+    - name: Verify containerd is installed
+      command: which containerd
+      changed_when: false
+      register: containerd_path
+      failed_when: containerd_path.rc != 0
+
+    - name: Check containerd version
+      command: containerd --version
+      changed_when: false
+      register: containerd_ver
+
+    - name: Display containerd version
+      debug:
+        msg: "Containerd version: {{ containerd_ver.stdout }}"
+
+    # --- Service verification (if services were started) ---
+    - name: Check if containerd service exists
+      systemd:
+        name: containerd
+      register: containerd_service
+      failed_when: false
+
+    - name: Display containerd service status
+      debug:
+        var: containerd_service.status.ActiveState
+      when: containerd_service.status is defined
+
+    # --- Network verification ---
+    - name: Get network interface information
+      command: ip addr show {{ interface }}
+      changed_when: false
+      register: interface_info
+      failed_when: interface_info.rc != 0
+
+    - name: Display interface information
+      debug:
+        msg: "Interface {{ interface }} is present"
+
+    # --- Directory structure verification ---
+    - name: Verify /tmp directory is writable
+      file:
+        path: /tmp/molecule-test
+        state: directory
+        mode: '0755'
+
+    - name: Clean up test directory
+      file:
+        path: /tmp/molecule-test
+        state: absent
+
+# Primary master specific verification
+- name: Verify Primary Master
+  hosts: primary_master
+  become: true
+  tasks:
+    - name: Verify node is designated as primary
+      assert:
+        that:
+          - priority == 101
+          - state == "MASTER"
+        success_msg: "Primary master configuration is correct"
+        fail_msg: "Primary master configuration is incorrect"
+
+    - name: Display primary master status
+      debug:
+        msg: "This node is configured as PRIMARY MASTER with priority {{ priority }}"
+
+# Secondary masters verification
+- name: Verify Secondary Masters
+  hosts: secondary_masters
+  become: true
+  tasks:
+    - name: Verify node is designated as secondary
+      assert:
+        that:
+          - priority == 100
+          - state == "BACKUP"
+        success_msg: "Secondary master configuration is correct"
+        fail_msg: "Secondary master configuration is incorrect"
+
+    - name: Display secondary master status
+      debug:
+        msg: "This node is configured as SECONDARY MASTER with priority {{ priority }}"
+
+# Final summary
+- name: Test Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display test summary
+      debug:
+        msg:
+          - "======================================"
+          - "Molecule Test Verification Complete"
+          - "======================================"
+          - "✓ All required scripts are present and executable"
+          - "✓ Containerd is installed and functional"
+          - "✓ Network interfaces are configured"
+          - "✓ Node roles are correctly assigned"
+          - "======================================"
