@@ -20,10 +20,28 @@
         /tmp/common_setup.sh
         {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
       changed_when: true
-      retries: 5
-      delay: 10
-      register: result
-      until: result.rc == 0
+      register: common_setup_result
+      failed_when: common_setup_result.rc not in [0, 100]
+
+    - name: Reboot if cgroup parameters were added
+      reboot:
+        reboot_timeout: 300
+        msg: "Rebooting to apply cgroup memory parameters"
+      when: common_setup_result.rc == 100
+
+    - name: Re-copy common script after reboot
+      copy:
+        src: "{{ playbook_dir }}/scripts/common_setup.sh"
+        dest: /tmp/common_setup.sh
+        mode: '0755'
+      when: common_setup_result.rc == 100
+
+    - name: Re-run common setup after reboot
+      shell: >
+        /tmp/common_setup.sh
+        {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
+      changed_when: true
+      when: common_setup_result.rc == 100
 
 # --- Primary Master: Init実行とファイル読み取り ---
 - name: Initialize Primary Master

@@ -12,9 +12,78 @@ K8S_VERSION=$7
 
 echo ">>> Starting Common Setup..."
 
+# --- 0. cgroup memory有効化 (Raspberry Pi必須) ---
+# Raspberry Pi OS Bookworm以降は /boot/firmware/cmdline.txt
+# 古いバージョンは /boot/cmdline.txt
+CMDLINE_FILE=""
+if [ -f /boot/firmware/cmdline.txt ]; then
+    CMDLINE_FILE="/boot/firmware/cmdline.txt"
+elif [ -f /boot/cmdline.txt ]; then
+    CMDLINE_FILE="/boot/cmdline.txt"
+fi
+
+if [ -n "$CMDLINE_FILE" ]; then
+    if ! grep -q "cgroup_memory=1" "$CMDLINE_FILE"; then
+        echo ">>> Enabling cgroup memory in $CMDLINE_FILE..."
+        # cmdline.txtは1行なので、末尾にパラメータを追加
+        sed -i 's/$/ cgroup_enable=memory cgroup_memory=1/' "$CMDLINE_FILE"
+        echo ">>> cgroup parameters added. A REBOOT is required!"
+        echo ">>> Please reboot all nodes and re-run this playbook."
+        exit 100
+    else
+        echo ">>> cgroup memory already enabled"
+    fi
+fi
+
 # --- 1. OS設定 ---
+# swapを完全に無効化（zramも含む）
 swapoff -a
 sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+# zram-generatorの設定を無効化（Raspberry Pi OS Bookworm以降で使用されている）
+echo ">>> Disabling zram-generator configuration..."
+if [ -f /usr/lib/systemd/zram-generator.conf ]; then
+    mv /usr/lib/systemd/zram-generator.conf /usr/lib/systemd/zram-generator.conf.disabled 2>/dev/null || true
+fi
+if [ -f /etc/systemd/zram-generator.conf ]; then
+    mv /etc/systemd/zram-generator.conf /etc/systemd/zram-generator.conf.disabled 2>/dev/null || true
+fi
+# zram-generator.conf.d ディレクトリも無効化
+if [ -d /usr/lib/systemd/zram-generator.conf.d ]; then
+    mv /usr/lib/systemd/zram-generator.conf.d /usr/lib/systemd/zram-generator.conf.d.disabled 2>/dev/null || true
+fi
+if [ -d /etc/systemd/zram-generator.conf.d ]; then
+    mv /etc/systemd/zram-generator.conf.d /etc/systemd/zram-generator.conf.d.disabled 2>/dev/null || true
+fi
+
+# zramデバイスがまだ存在する場合は停止して削除
+if [ -e /dev/zram0 ]; then
+    echo ">>> Stopping and removing zram0 device..."
+    # スワップを停止
+    swapoff /dev/zram0 2>/dev/null || true
+    # systemdのzramサービスを停止
+    systemctl stop dev-zram0.swap 2>/dev/null || true
+    systemctl stop 'systemd-zram-setup@zram0.service' 2>/dev/null || true
+    # zramデバイスをリセット
+    echo 1 > /sys/block/zram0/reset 2>/dev/null || true
+    # zramモジュールをアンロード
+    rmmod zram 2>/dev/null || true
+fi
+
+# systemd-generatorを再実行してzram設定を削除
+systemctl daemon-reload
+
+# 古いzramサービスも無効化（古いOS用）
+systemctl disable --now zramswap.service 2>/dev/null || true
+systemctl disable --now zram-config.service 2>/dev/null || true
+
+# 確認: スワップが完全に無効化されているか
+if grep -q zram /proc/swaps 2>/dev/null; then
+    echo "❌ ERROR: zram swap is still active!"
+    cat /proc/swaps
+    exit 1
+fi
+echo "✅ Swap disabled successfully"
 
 cat <<EOF | tee /etc/modules-load.d/k8s.conf
 overlay
@@ -43,13 +112,29 @@ sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.t
 systemctl restart containerd
 
 # --- 4. K8sツールインストール ---
-if [ ! -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg ]; then
+# kubeadm コマンドが存在しない場合はインストール（gpgファイルだけでは不十分）
+if ! command -v kubeadm &>/dev/null; then
+	echo ">>> Installing Kubernetes tools (kubeadm, kubelet, kubectl)..."
+
+	# GPGキーが壊れている可能性があるので一度削除
+	rm -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+	rm -f /etc/apt/sources.list.d/kubernetes.list
+
 	mkdir -p /etc/apt/keyrings
 	curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/deb/Release.key" | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 	echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
 	apt-get update
 	apt-get install -y kubelet kubeadm kubectl
 	apt-mark hold kubelet kubeadm kubectl
+
+	# インストール確認
+	if ! command -v kubeadm &>/dev/null; then
+		echo "❌ Failed to install kubeadm!"
+		exit 1
+	fi
+	echo "✅ Kubernetes tools installed successfully"
+else
+	echo ">>> Kubernetes tools already installed: $(kubeadm version -o short 2>/dev/null || echo 'unknown')"
 fi
 
 # --- 4.5. CNI plugin path fix ---

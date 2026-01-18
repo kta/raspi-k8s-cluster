@@ -10,7 +10,9 @@ if [ -f /etc/kubernetes/kubelet.conf ]; then
 	echo "Already joined to cluster."
 else
 	echo "Joining cluster..."
-	NODE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n 1)
+	# デフォルトルートのソースIPを取得（インターフェース名に依存しない）
+	NODE_IP=$(ip route get 8.8.8.8 | grep -oP 'src \K[\d.]+' | head -n 1)
+	echo ">>> Using NODE_IP: ${NODE_IP}"
 	eval "$JOIN_CMD --apiserver-advertise-address=${NODE_IP}"
 fi
 

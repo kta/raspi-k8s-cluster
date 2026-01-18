@@ -10,8 +10,14 @@ echo ">>> Starting Primary Init..."
 # 1. クラスター未作成なら init 実行
 if [ ! -f /etc/kubernetes/admin.conf ]; then
 	echo "Initializing Cluster..."
-	# 各ノードのIPアドレスを取得
-	NODE_IP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n 1)
+	# 各ノードのIPアドレスを取得（VIPと同じサブネットのインターフェースを自動検出）
+	# 複数のインターフェースから、VIPに到達できるものを選択
+	NODE_IP=$(ip route get "${VIP}" | grep -oP 'src \K[\d.]+' | head -n 1)
+	if [ -z "$NODE_IP" ]; then
+		# フォールバック: デフォルトルートのソースIPを使用
+		NODE_IP=$(ip route get 8.8.8.8 | grep -oP 'src \K[\d.]+' | head -n 1)
+	fi
+	echo ">>> Using NODE_IP: ${NODE_IP}"
 	kubeadm init --control-plane-endpoint "${VIP}:${HAPROXY_PORT}" \
 		--upload-certs \
 		--pod-network-cidr=10.244.0.0/16 \
