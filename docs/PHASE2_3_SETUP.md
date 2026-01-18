@@ -1732,7 +1732,7 @@ git push origin main
 
 ```bash
 # 1. YOUR_USERNAME を自分のユーザー名に置換
-find k8s -name "*.yaml" -exec sed -i '' 's/YOUR_USERNAME/your-actual-username/g' {} \;
+find k8s -name "*.yaml" -exec sed -i '' 's/kta/your-actual-username/g' {} \;
 
 # 2. MetalLB の IP レンジを環境に合わせて変更
 # 実機: 192.168.1.200-192.168.1.220
