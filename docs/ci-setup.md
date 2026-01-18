@@ -30,8 +30,7 @@ raspi-k8s-cluster/
 │   ├── scripts/                      # シェルスクリプト
 │   ├── site.yml                      # メインプレイブック
 │   └── .ansible-lint                 # ansible-lint 設定
-├── .yamllint                         # yamllint 設定
-└── requirements.txt                  # Python 依存関係
+└── .yamllint                         # yamllint 設定
 ```
 
 ## テスト戦略
