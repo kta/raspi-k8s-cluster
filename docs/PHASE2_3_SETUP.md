@@ -749,7 +749,7 @@ kubectl get applications -n argocd
 
 ```bash
 # すべてのアプリケーションを表示
-kubectl get applications -n argocd
+kubectl get applications -n argockubectl get applications -n argocdd
 
 # 期待される出力:
 # NAME            SYNC STATUS   HEALTH STATUS

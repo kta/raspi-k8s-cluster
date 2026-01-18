@@ -9,12 +9,13 @@ spec:
   project: default
 
   source:
-    # ここを自分のリポジトリ URL に変更
     repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
     path: k8s/infra
     directory:
       recurse: true
+      exclude: '*/resources/*'
+
 
   destination:
     server: https://kubernetes.default.svc

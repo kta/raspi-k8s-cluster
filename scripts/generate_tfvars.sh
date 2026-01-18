@@ -49,9 +49,9 @@ if [[ -f "$TFVARS_FILE" ]]; then
 fi
 
 # デフォルト値を設定
-GITHUB_USERNAME="${GITHUB_USERNAME:-your-username}"
+GITHUB_USERNAME="${GITHUB_USERNAME:-kta}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}"
-GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.com/your-username/raspi-k8s-cluster.git}"
+GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.com/kta/raspi-k8s-cluster.git}"
 
 # tfvars ファイルを生成
 cat > "$OUTPUT_FILE" <<EOF

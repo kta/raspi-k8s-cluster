@@ -1,8 +1,8 @@
 # 実機環境用 terraform.tfvars (参考)
 
-github_username = "your-username"
+github_username = "kta"
 github_token    = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-github_repo_url = "https://github.com/your-username/raspi-k8s-cluster.git"
+github_repo_url = "https://github.com/kta/raspi-k8s-cluster.git"
 
 environment      = "production"
 metallb_ip_range = "192.168.1.200-192.168.1.220"
