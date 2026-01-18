@@ -101,11 +101,24 @@ repoServer:
 
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      cpu: 500m
+      cpu: 100m
       memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+
+  # Liveness probeのタイムアウトを延長（ARM64環境で安定性向上）
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
 
 # -----------------------------------------------------------------------------
 # ArgoCD ApplicationSet Controller設定
