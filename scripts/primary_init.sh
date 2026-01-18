@@ -23,8 +23,12 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
     
     # CNI (Flannel) のインストール
     echo "Installing Flannel CNI..."
-    kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
-    echo "Flannel manifest applied. CNI plugins will be installed by Flannel pods on each node."
+    if kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml; then
+        echo "Flannel manifest applied successfully."
+    else
+        echo "ERROR: Failed to apply Flannel manifest"
+        exit 1
+    fi
     
     # MasterにもPodを置けるようにTaint解除 (3台構成なら必須)
     kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
