@@ -2,18 +2,25 @@
 - name: Prepare Test Environment (Mocking Hardware)
   hosts: all
   become: true
-  gather_facts: false  # 高速化のため最初はFacts収集しない
+  gather_facts: false
   tasks:
-    # --- 1. Aptロックの解放待ち (起動直後の競合回避) ---
-    - name: Wait for apt lock to be released
+    # --- 1. Aptロックの解放待ち (fuserを使わない堅牢なロジック) ---
+    - name: Wait for apt to be ready (Retry loop)
       raw: |
-        while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-          echo "Waiting for apt lock..."
-          sleep 2
+        # apt-get check が成功するまで最大60秒待機する
+        for i in {1..20}; do
+          if apt-get check >/dev/null 2>&1; then
+            echo "Apt is ready!"
+            exit 0
+          fi
+          echo "Waiting for apt lock... ($i/20)"
+          sleep 3
         done
+        echo "Error: Apt is still locked after waiting."
+        exit 1
       changed_when: false
 
-    - name: Update apt cache (with retry)
+    - name: Update apt cache
       apt:
         update_cache: true
         cache_valid_time: 3600
@@ -22,12 +29,13 @@
       retries: 3
       delay: 5
 
-    - name: Install required tools for testing
+    # テストに必要な最低限のコマンドを入れる
+    - name: Install required tools
       apt:
-        name: [curl, iproute2, sudo, systemd, ca-certificates, procps]
+        name: [curl, iproute2, sudo, systemd, ca-certificates, procps, kmod]
         state: present
 
-    # --- 2. Hardware Mocking (ハードウェア操作の無効化) ---
+    # --- 2. Hardware Mocking ---
     - name: Ensure /boot/firmware directory exists
       file:
         path: /boot/firmware
@@ -43,9 +51,9 @@
         - /boot/cmdline.txt
         - /boot/firmware/cmdline.txt
 
-    # --- 3. System Command Mocking (コマンドのモック化) ---
-    # 既存のバイナリがあると上書きでエラーになることがあるため、先に削除する
-    - name: Remove existing system binaries for mocking
+    # --- 3. System Command Mocking ---
+    # 既存のバイナリを削除（上書きエラー防止）
+    - name: Remove existing system binaries
       file:
         path: "{{ item }}"
         state: absent
@@ -57,8 +65,8 @@
         - /sbin/sysctl
         - /usr/sbin/sysctl
 
-    # どこから呼ばれてもいいように /usr/bin, /usr/sbin 両方にモックを配置
-    - name: Mock 'modprobe' (Kernel modules)
+    # モックの作成（パスに関わらず動作するように複数箇所に配置）
+    - name: Mock 'modprobe'
       copy:
         content: |
           #!/bin/sh
@@ -70,7 +78,7 @@
         - /sbin/modprobe
         - /usr/sbin/modprobe
 
-    - name: Mock 'swapoff' (Swap)
+    - name: Mock 'swapoff'
       copy:
         content: |
           #!/bin/sh
@@ -82,7 +90,7 @@
         - /sbin/swapoff
         - /usr/sbin/swapoff
 
-    - name: Mock 'sysctl' (Kernel params)
+    - name: Mock 'sysctl'
       copy:
         content: |
           #!/bin/sh
@@ -99,13 +107,13 @@
         path: /etc/fstab
         state: touch
 
-    # --- 4. Kubeadm Bypass (構築プロセスのモック化) ---
+    # --- 4. Kubeadm Bypass (重要) ---
     - name: Mock 'kubeadm' command
       copy:
         content: |
           #!/bin/bash
-          # ログを出力して実行されたことを証明する
-          echo "[MOCK] kubeadm execution: $@" >> /tmp/kubeadm_mock.log
+          # ログに残す
+          echo "[MOCK] kubeadm $@" >> /tmp/kubeadm_mock.log
           
           if [[ "$@" == *"init"* ]]; then
             echo "[MOCK] kubeadm init executed"
@@ -115,7 +123,7 @@
             echo "1234567890abcdef1234567890abcdef"
             
           elif [[ "$@" == *"token create"* ]]; then
-            # Joinコマンドのダミー出力
+            # Joinコマンドのダミー出力（localhostを指すようにする）
             echo "kubeadm join 127.0.0.1:8443 --token abcdef.0123456789abcdef --discovery-token-ca-cert-hash sha256:1234567890abcdef"
             
           elif [[ "$@" == *"join"* ]]; then
