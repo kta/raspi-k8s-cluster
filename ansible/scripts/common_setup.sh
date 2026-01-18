@@ -38,18 +38,18 @@ apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release ke
 
 # --- 3. Containerd設定 ---
 mkdir -p /etc/containerd
-containerd config default > /etc/containerd/config.toml
+containerd config default >/etc/containerd/config.toml
 sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
 systemctl restart containerd
 
 # --- 4. K8sツールインストール ---
 if [ ! -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg ]; then
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
-    apt-get update
-    apt-get install -y kubelet kubeadm kubectl
-    apt-mark hold kubelet kubeadm kubectl
+	mkdir -p /etc/apt/keyrings
+	curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/deb/Release.key" | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+	echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
+	apt-get update
+	apt-get install -y kubelet kubeadm kubectl
+	apt-mark hold kubelet kubeadm kubectl
 fi
 
 # --- 4.5. CNI plugin path fix ---
@@ -64,19 +64,19 @@ mkdir -p /etc/default
 
 # ビルド設定ファイルが削除されている場合、手動で作成
 if [ ! -f /etc/keepalived/keepalived.config-opts ]; then
-    cat <<'EOFBUILD' > /etc/keepalived/keepalived.config-opts
+	cat <<'EOFBUILD' >/etc/keepalived/keepalived.config-opts
 --build=aarch64-linux-gnu --prefix=/usr --includedir=/usr/include --mandir=/usr/share/man --infodir=/usr/share/info --sysconfdir=/etc --localstatedir=/var --disable-option-checking --disable-silent-rules --libdir=/usr/lib/aarch64-linux-gnu --runstatedir=/run --disable-maintainer-mode --disable-dependency-tracking --enable-snmp --enable-sha1 --enable-snmp-rfcv2 --enable-snmp-rfcv3 --enable-dbus --enable-json --enable-bfd --enable-regex --enable-log-file --enable-reproducible-build --with-init=systemd build_alias=aarch64-linux-gnu CFLAGS=-g -O2 -Werror=implicit-function-declaration -ffile-prefix-map=/build/reproducible-path/keepalived-2.3.3=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -mbranch-protection=standard LDFLAGS=-Wl,-z,relro CPPFLAGS=-Wdate-time -D_FORTIFY_SOURCE=2
 EOFBUILD
 fi
 
-cat <<EOF > /etc/default/keepalived
+cat <<EOF >/etc/default/keepalived
 # Options to pass to keepalived
 
 # DAEMON_ARGS are appended to the keepalived command-line
 DAEMON_ARGS=""
 EOF
 
-cat <<EOF > /etc/keepalived/keepalived.conf
+cat <<EOF >/etc/keepalived/keepalived.conf
 vrrp_instance VI_1 {
     state ${STATE}
     interface ${INTERFACE}
@@ -96,8 +96,8 @@ EOF
 # 設定ファイルのチェック
 echo ">>> Checking Keepalived config..."
 if [ ! -f /etc/keepalived/keepalived.conf ]; then
-    echo "❌ Keepalived config not found!"
-    exit 1
+	echo "❌ Keepalived config not found!"
+	exit 1
 fi
 cat /etc/keepalived/keepalived.conf
 
@@ -106,10 +106,10 @@ systemctl stop keepalived || true
 systemctl start keepalived
 sleep 2
 if ! systemctl is-active --quiet keepalived; then
-    echo "❌ Keepalived failed to start!"
-    systemctl status keepalived --no-pager --lines=50 || true
-    journalctl -xeu keepalived.service --no-pager -n 50 || true
-    exit 1
+	echo "❌ Keepalived failed to start!"
+	systemctl status keepalived --no-pager --lines=50 || true
+	journalctl -xeu keepalived.service --no-pager -n 50 || true
+	exit 1
 fi
 echo "✅ Keepalived started successfully"
 
@@ -119,7 +119,7 @@ mkdir -p /run/haproxy
 mkdir -p /etc/haproxy
 
 # まずベース設定を書く (mode tcp に統一)
-cat <<EOF > /etc/haproxy/haproxy.cfg
+cat <<EOF >/etc/haproxy/haproxy.cfg
 global
     log /dev/log    local0
     log /dev/log    local1 notice
@@ -152,17 +152,17 @@ EOF
 
 # サーバーリストをループで追記する (ここが修正ポイント！)
 i=1
-for ip in $(echo $NODE_IPS | tr "," " "); do
-    echo "    server k8s-${i} ${ip}:6443 check fall 3 rise 2" >> /etc/haproxy/haproxy.cfg
-    i=$((i+1))
+for ip in $(echo "$NODE_IPS" | tr "," " "); do
+	echo "    server k8s-${i} ${ip}:6443 check fall 3 rise 2" >>/etc/haproxy/haproxy.cfg
+	i=$((i + 1))
 done
 
 # 設定ファイルの構文チェック
 echo ">>> Checking HAProxy config..."
 if ! haproxy -c -f /etc/haproxy/haproxy.cfg; then
-    echo "❌ HAProxy config is invalid!"
-    cat /etc/haproxy/haproxy.cfg
-    exit 1
+	echo "❌ HAProxy config is invalid!"
+	cat /etc/haproxy/haproxy.cfg
+	exit 1
 fi
 
 systemctl restart haproxy
