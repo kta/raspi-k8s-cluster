@@ -23,6 +23,7 @@
         autoremove: yes
         autoclean: yes
       register: apt_upgrade_result
+      when: not is_ci_environment | default(false)
 
     - name: Check if reboot is required after upgrade
       stat:
@@ -33,7 +34,9 @@
       reboot:
         reboot_timeout: 300
         msg: "Rebooting after package upgrade"
-      when: reboot_required_file.stat.exists
+      when: 
+        - reboot_required_file.stat.exists
+        - not is_ci_environment | default(false)
       tags: [reboot]
 
     # --- 共通セットアップスクリプト実行 ---
@@ -51,6 +54,8 @@
       shell: >
         /tmp/common_setup.sh
         {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
+      environment:
+        IS_CI: "{{ is_ci_environment | default(false) | lower }}"
       changed_when: true
       register: common_setup_result
       failed_when: common_setup_result.rc not in [0, 100]
@@ -59,22 +64,30 @@
       reboot:
         reboot_timeout: 300
         msg: "Rebooting to apply cgroup memory parameters"
-      when: common_setup_result.rc == 100
-      tags: [reboot]  # CIではスキップ
+      when: 
+        - common_setup_result.rc == 100
+        - not is_ci_environment | default(false)
+      tags: [reboot]
 
     - name: Re-copy common script after reboot
       copy:
         src: "{{ playbook_dir }}/scripts/common_setup.sh"
         dest: /tmp/common_setup.sh
         mode: '0755'
-      when: common_setup_result.rc == 100
+      when: 
+        - common_setup_result.rc == 100
+        - not is_ci_environment | default(false)
 
     - name: Re-run common setup after reboot
       shell: >
         /tmp/common_setup.sh
         {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
+      environment:
+        IS_CI: "{{ is_ci_environment | default(false) | lower }}"
       changed_when: true
-      when: common_setup_result.rc == 100
+      when: 
+        - common_setup_result.rc == 100
+        - not is_ci_environment | default(false)
 
 
 # ==============================================================================
