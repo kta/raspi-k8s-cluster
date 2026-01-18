@@ -4,57 +4,59 @@
   become: true
   gather_facts: false
   tasks:
-    # --- 1. Python Bootstrap & Apt Fix (Debian 13 対策) ---
+    # --- 1. APT Configuration (最重要: Debian 13 対策) ---
+    # Ansibleのaptモジュールやスクリプト内のapt-getが
+    # ReleaseInfoの変更で止まらないように、設定ファイルで恒久的に許可する
+    - name: Configure Apt to allow release info changes
+      copy:
+        content: |
+          Acquire::AllowReleaseInfoChange "true";
+          Acquire::AllowReleaseInfoChange::Suite "true";
+        dest: /etc/apt/apt.conf.d/99allow_release_info_change
+        mode: '0644'
+
+    # --- 2. Python Bootstrap ---
     - name: Bootstrap Python and Update Apt
       raw: |
-        for i in 1 2 3; do
-          if apt-get check >/dev/null 2>&1; then
-             if apt-get update --allow-releaseinfo-change; then
-                apt-get install -y python3 python3-apt sudo
-                exit 0
-             fi
-          fi
-          echo "Waiting for apt lock or update failed... retry $i"
-          sleep 5
-        done
-        apt-get install -y python3 python3-apt sudo
+        # Pythonがない場合のみ実行
+        if ! command -v python3 >/dev/null 2>&1; then
+           # ロック解除待ち
+           for i in 1 2 3 4 5; do
+             if apt-get check >/dev/null 2>&1; then break; fi
+             sleep 5
+           done
+           # 設定ファイルを入れたので普通に update できるはずだが、念のため options もつける
+           apt-get update --allow-releaseinfo-change || true
+           apt-get install -y python3 python3-apt sudo || exit 1
+        fi
+        exit 0
       changed_when: false
-      register: bootstrap_result
-      failed_when: bootstrap_result.rc != 0
 
-    # --- 2. 依存ツールのインストール ---
+    # --- 3. 依存ツールのインストール ---
     - name: Install required tools
       apt:
         name: [curl, iproute2, systemd, ca-certificates, procps, kmod]
         state: present
         update_cache: false
 
-    # --- 3. Hardware Mocking (【修正】Reboot回避の仕込み) ---
+    # --- 4. Hardware Mocking (Reboot回避) ---
     - name: Ensure /boot/firmware directory exists
       file:
         path: /boot/firmware
         state: directory
         mode: '0755'
 
-    # 【重要】ここを修正！
-    # 空ファイルではなく「すでに設定済み」と誤認させる内容を書き込む
-    # これで common_setup.sh は exit 100 (再起動) をしなくなる
-    - name: Create mocked cmdline.txt with cgroup params
+    # スクリプトが「設定済み」と誤認するように、期待するパラメータを書き込んでおく
+    - name: Create mocked cmdline.txt
       copy:
-        content: "console=serial0,115200 console=tty1 root=PARTUUID=... fsck.repair=yes rootwait cgroup_enable=memory cgroup_memory=1"
+        content: "console=serial0,115200 root=PARTUUID=x fsck.repair=yes rootwait cgroup_enable=memory cgroup_memory=1"
         dest: "{{ item }}"
         mode: '0644'
       loop:
         - /boot/cmdline.txt
         - /boot/firmware/cmdline.txt
 
-    # アップデートによる再起動要求ファイルも消しておく
-    - name: Remove reboot-required flag
-      file:
-        path: /var/run/reboot-required
-        state: absent
-
-    # --- 4. System Command Mocking ---
+    # --- 5. System Command Mocking ---
     - name: Remove existing binaries
       file:
         path: "{{ item }}"
@@ -108,7 +110,7 @@
         path: /etc/fstab
         state: touch
 
-    # --- 5. Kubeadm Bypass ---
+    # --- 6. Kubeadm Bypass ---
     - name: Mock 'kubeadm' command
       copy:
         content: |
@@ -116,21 +118,17 @@
           echo "[MOCK] kubeadm $@" >> /tmp/kubeadm_mock.log
           
           if [[ "$@" == *"init"* ]]; then
-            echo "[MOCK] kubeadm init executed"
+            echo "[MOCK] kubeadm init"
             mkdir -p /etc/kubernetes
             touch /etc/kubernetes/admin.conf
             echo "1234567890abcdef1234567890abcdef"
-            
           elif [[ "$@" == *"token create"* ]]; then
-            echo "kubeadm join 127.0.0.1:8443 --token abcdef.0123456789abcdef --discovery-token-ca-cert-hash sha256:1234567890abcdef"
-            
+            # 検証フェーズを通すためにlocalhostをVIPに見立てる
+            echo "kubeadm join 127.0.0.1:8443 --token mock --discovery-token-ca-cert-hash sha256:mock"
           elif [[ "$@" == *"join"* ]]; then
-             echo "[MOCK] kubeadm join executed"
+             echo "[MOCK] kubeadm join"
              mkdir -p /etc/kubernetes
              touch /etc/kubernetes/kubelet.conf
-             
-          else
-            echo "[MOCK] kubeadm other command"
           fi
           exit 0
         dest: /usr/bin/kubeadm
@@ -140,7 +138,6 @@
       copy:
         content: |
           #!/bin/sh
-          echo "[MOCK] kubectl $@"
           exit 0
         dest: /usr/bin/kubectl
         mode: '0755'
