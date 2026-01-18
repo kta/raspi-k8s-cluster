@@ -14,7 +14,7 @@ spec:
     path: k8s/infra
     directory:
       recurse: true
-      exclude: '*/resources/*,*/base/*,*/overlays/*,kustomization.yaml'
+      exclude: '{*/resources/*,*/base/*,*/overlays/*,**/kustomization.yaml}'
 
 
   destination:
