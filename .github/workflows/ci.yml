@@ -1,29 +1,33 @@
-name: CI - Kubernetes Cluster Build Test
+name: CI - Ansible Molecule Tests
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches:
+      - main
+      - develop
     paths-ignore:
       - '**.md'
       - 'docs/**'
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+      - develop
   workflow_dispatch:
 
 env:
-  # Ansibleの出力を読みやすくする
+  # Ansibleのログを見やすくする設定
   ANSIBLE_FORCE_COLOR: '1'
   PY_COLORS: '1'
 
 jobs:
   # ------------------------------------------------------------------
-  # Job 1: Static Analysis (Linting)
+  # Job 1: Lint & Static Analysis (静的解析)
   # ------------------------------------------------------------------
   lint:
     name: 🛡️ Lint & Static Analysis
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Check out code
         uses: actions/checkout@v4
 
       - name: Set up Python 3.11
@@ -34,22 +38,27 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install ansible-lint yamllint
+          python -m pip install --upgrade pip
+          # 古い molecule-docker ではなく、新しいプラグイン構成を使用
+          pip install "molecule>=6.0.0" "molecule-plugins[docker]" ansible-lint yamllint ansible
 
       - name: Run yamllint
         run: yamllint -c .yamllint ansible/
 
       - name: Run ansible-lint
-        # 構文チェックのみ実施（実行エラーはMoleculeで拾うため）
         run: |
           cd ansible
           ansible-lint site.yml verify.yml reset.yml upgrade.yml
 
-      - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@master
-        with:
-          scandir: './ansible/scripts'
-          severity: 'warning'
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on scripts
+        # シェルスクリプトの構文エラーをチェック
+        run: |
+          find ansible/scripts -name "*.sh" -type f -exec shellcheck {} +
 
   # ------------------------------------------------------------------
   # Job 2: Integration Test (Molecule)
@@ -63,8 +72,9 @@ jobs:
       matrix:
         scenario:
           - default
+
     steps:
-      - name: Checkout Code
+      - name: Check out code
         uses: actions/checkout@v4
 
       - name: Set up Python 3.11
@@ -73,21 +83,31 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      # Dockerが正常に動作しているか確認（デバッグ用）
+      - name: Verify Docker Engine
+        run: docker info
+
       - name: Install Molecule & Drivers
         run: |
-          pip install -r requirements.txt
-          pip install "molecule-plugins[docker]"
+          python -m pip install --upgrade pip
+          # 【重要】ここで明示的に docker プラグインを入れることでエラーを回避
+          pip install "molecule>=6.0.0" "molecule-plugins[docker]" ansible docker
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Display tool versions
+        run: |
+          molecule --version
+          ansible --version
+          docker --version
 
-      - name: Run Molecule Tests
+      - name: Run Molecule tests
         working-directory: ansible
-        run: molecule test --scenario-name ${{ matrix.scenario }}
         env:
-          MOLECULE_DISTRO: debian13
+          MOLECULE_DISTRO: debian12
+        run: |
+          molecule test --scenario-name ${{ matrix.scenario }}
 
-      - name: Upload Logs on Failure
+      # テスト失敗時のみログをアップロードして分析できるようにする
+      - name: Upload Molecule logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
