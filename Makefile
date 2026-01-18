@@ -166,6 +166,18 @@ terraform-apply: ## 【Phase 2】Terraform適用（ArgoCDインストール）
 	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT))..."
 	cd terraform/bootstrap && terraform apply
 
+.PHONY: terraform-apply-auto-approve
+terraform-apply-auto-approve: ## 【Phase 2】Terraform適用（ArgoCDインストール）
+	@if [ ! -f terraform/bootstrap/terraform.auto.tfvars ]; then \
+		echo "⚠️  terraform.auto.tfvars が見つかりません。生成します..."; \
+		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
+	else \
+		./scripts/verify_tfvars_environment.sh $(ENVIRONMENT) || \
+		(echo "🔄 環境不一致を検出。再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
+	fi
+	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT))..."
+	cd terraform/bootstrap && terraform apply -auto-approve
+
 .PHONY: terraform-apply-vagrant
 terraform-apply-vagrant: ## Vagrant環境でTerraformを適用
 	$(MAKE) terraform-apply ENV=vagrant
@@ -262,7 +274,7 @@ setup-all-vagrant: ## 【Vagrant環境】全フェーズを一括実行（Phase 
 	$(MAKE) vagrant-up
 	$(MAKE) ansible-setup-vagrant
 	$(MAKE) fetch-kubeconfig-vagrant
-	$(MAKE) terraform-apply ENV=vagrant
+	$(MAKE) terraform-apply-auto-approve ENV=vagrant
 	$(MAKE) argocd-bootstrap
 	@echo "✅ Vagrant環境のセットアップが完了しました！"
 	@echo "次のコマンドでクラスターの状態を確認してください: make status"
