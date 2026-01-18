@@ -34,7 +34,7 @@
         reboot_timeout: 300
         msg: "Rebooting after package upgrade"
       when: reboot_required_file.stat.exists
-      tags: [reboot]  
+      tags: [reboot]
 
     # --- 共通セットアップスクリプト実行 ---
     - name: Copy common script
@@ -140,7 +140,6 @@
         join_cmd: "{{ lookup('file', playbook_dir + '/.join_command.tmp') }}"
       delegate_to: localhost
       become: false
-      
     - name: Copy secondary init script
       copy:
         src: "{{ playbook_dir }}/scripts/secondary_init.sh"
@@ -154,7 +153,9 @@
       poll: 10
 
     - name: Wait for node to be ready
-      shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      shell: >
+        kubectl --kubeconfig=/etc/kubernetes/admin.conf get node {{ inventory_hostname }}
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
       register: node_ready
       until: node_ready.stdout == "True"
       retries: 30
@@ -163,7 +164,10 @@
       when: not is_ci_environment | default(false)
 
     - name: Wait for etcd pod to be running
-      shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get pod -l component=etcd,tier=control-plane -o jsonpath='{.items[?(@.spec.nodeName=="{{ inventory_hostname }}")].status.phase}'
+      shell: >
+        kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get pod
+        -l component=etcd,tier=control-plane
+        -o jsonpath='{.items[?(@.spec.nodeName=="{{ inventory_hostname }}")].status.phase}'
       register: etcd_pod
       until: etcd_pod.stdout == "Running"
       retries: 30
