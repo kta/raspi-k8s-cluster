@@ -17,22 +17,22 @@ echo ">>> Starting Common Setup..."
 # 古いバージョンは /boot/cmdline.txt
 CMDLINE_FILE=""
 if [ -f /boot/firmware/cmdline.txt ]; then
-    CMDLINE_FILE="/boot/firmware/cmdline.txt"
+	CMDLINE_FILE="/boot/firmware/cmdline.txt"
 elif [ -f /boot/cmdline.txt ]; then
-    CMDLINE_FILE="/boot/cmdline.txt"
+	CMDLINE_FILE="/boot/cmdline.txt"
 fi
 
 if [ -n "$CMDLINE_FILE" ]; then
-    if ! grep -q "cgroup_memory=1" "$CMDLINE_FILE"; then
-        echo ">>> Enabling cgroup memory in $CMDLINE_FILE..."
-        # cmdline.txtは1行なので、末尾にパラメータを追加
-        sed -i 's/$/ cgroup_enable=memory cgroup_memory=1/' "$CMDLINE_FILE"
-        echo ">>> cgroup parameters added. A REBOOT is required!"
-        echo ">>> Please reboot all nodes and re-run this playbook."
-        exit 100
-    else
-        echo ">>> cgroup memory already enabled"
-    fi
+	if ! grep -q "cgroup_memory=1" "$CMDLINE_FILE"; then
+		echo ">>> Enabling cgroup memory in $CMDLINE_FILE..."
+		# cmdline.txtは1行なので、末尾にパラメータを追加
+		sed -i 's/$/ cgroup_enable=memory cgroup_memory=1/' "$CMDLINE_FILE"
+		echo ">>> cgroup parameters added. A REBOOT is required!"
+		echo ">>> Please reboot all nodes and re-run this playbook."
+		exit 100
+	else
+		echo ">>> cgroup memory already enabled"
+	fi
 fi
 
 # --- 1. OS設定 ---
@@ -44,46 +44,46 @@ sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 echo ">>> Disabling Raspberry Pi swap management..."
 # rpi-swapの設定ファイル自体を無効化（Raspberry Pi OS最新版）
 if [ -f /etc/rpi/swap.conf ]; then
-    mv /etc/rpi/swap.conf /etc/rpi/swap.conf.disabled 2>/dev/null || true
+	mv /etc/rpi/swap.conf /etc/rpi/swap.conf.disabled 2>/dev/null || true
 fi
 # 念のため、設定ディレクトリ全体も無効化
 if [ -d /etc/rpi ]; then
-    # rpi ディレクトリ内の他のファイルも確認
-    if [ -f /etc/rpi/swap.conf.d/*  ]; then
-        mv /etc/rpi/swap.conf.d /etc/rpi/swap.conf.d.disabled 2>/dev/null || true
-    fi
+	# rpi ディレクトリ内の他のファイルも確認
+	if [ -d /etc/rpi/swap.conf.d ] && [ -n "$(ls -A /etc/rpi/swap.conf.d 2>/dev/null)" ]; then
+		mv /etc/rpi/swap.conf.d /etc/rpi/swap.conf.d.disabled 2>/dev/null || true
+	fi
 fi
 
 # zram-generatorの設定を無効化（古いバージョン用）
 echo ">>> Disabling zram-generator configuration..."
 if [ -f /usr/lib/systemd/zram-generator.conf ]; then
-    mv /usr/lib/systemd/zram-generator.conf /usr/lib/systemd/zram-generator.conf.disabled 2>/dev/null || true
+	mv /usr/lib/systemd/zram-generator.conf /usr/lib/systemd/zram-generator.conf.disabled 2>/dev/null || true
 fi
 if [ -f /etc/systemd/zram-generator.conf ]; then
-    mv /etc/systemd/zram-generator.conf /etc/systemd/zram-generator.conf.disabled 2>/dev/null || true
+	mv /etc/systemd/zram-generator.conf /etc/systemd/zram-generator.conf.disabled 2>/dev/null || true
 fi
 # zram-generator.conf.d ディレクトリも無効化
 if [ -d /usr/lib/systemd/zram-generator.conf.d ]; then
-    mv /usr/lib/systemd/zram-generator.conf.d /usr/lib/systemd/zram-generator.conf.d.disabled 2>/dev/null || true
+	mv /usr/lib/systemd/zram-generator.conf.d /usr/lib/systemd/zram-generator.conf.d.disabled 2>/dev/null || true
 fi
 if [ -d /etc/systemd/zram-generator.conf.d ]; then
-    mv /etc/systemd/zram-generator.conf.d /etc/systemd/zram-generator.conf.d.disabled 2>/dev/null || true
+	mv /etc/systemd/zram-generator.conf.d /etc/systemd/zram-generator.conf.d.disabled 2>/dev/null || true
 fi
 
 # zramデバイスがまだ存在する場合は停止して削除
 if [ -e /dev/zram0 ]; then
-    echo ">>> Stopping and removing zram0 device..."
-    # スワップを停止
-    swapoff /dev/zram0 2>/dev/null || true
-    # systemdのzramサービスを停止してマスク（完全無効化）
-    systemctl stop dev-zram0.swap 2>/dev/null || true
-    systemctl mask dev-zram0.swap 2>/dev/null || true
-    systemctl stop 'systemd-zram-setup@zram0.service' 2>/dev/null || true
-    systemctl mask 'systemd-zram-setup@zram0.service' 2>/dev/null || true
-    # zramデバイスをリセット
-    echo 1 > /sys/block/zram0/reset 2>/dev/null || true
-    # zramモジュールをアンロード
-    rmmod zram 2>/dev/null || true
+	echo ">>> Stopping and removing zram0 device..."
+	# スワップを停止
+	swapoff /dev/zram0 2>/dev/null || true
+	# systemdのzramサービスを停止してマスク（完全無効化）
+	systemctl stop dev-zram0.swap 2>/dev/null || true
+	systemctl mask dev-zram0.swap 2>/dev/null || true
+	systemctl stop 'systemd-zram-setup@zram0.service' 2>/dev/null || true
+	systemctl mask 'systemd-zram-setup@zram0.service' 2>/dev/null || true
+	# zramデバイスをリセット
+	echo 1 >/sys/block/zram0/reset 2>/dev/null || true
+	# zramモジュールをアンロード
+	rmmod zram 2>/dev/null || true
 fi
 
 # systemd-generatorの出力ファイルを削除（再起動時に再生成されないようにする）
@@ -103,11 +103,11 @@ systemctl mask zram-config.service 2>/dev/null || true
 
 # 確認: スワップが完全に無効化されているか
 if grep -q -E '(swap|zram)' /proc/swaps 2>/dev/null; then
-    echo "❌ ERROR: Swap is still active after disabling!"
-    cat /proc/swaps
-    echo ">>> This system requires a reboot to fully disable swap."
-    echo ">>> Exiting with code 100 to trigger reboot..."
-    exit 100
+	echo "❌ ERROR: Swap is still active after disabling!"
+	cat /proc/swaps
+	echo ">>> This system requires a reboot to fully disable swap."
+	echo ">>> Exiting with code 100 to trigger reboot..."
+	exit 100
 fi
 echo "✅ Swap disabled successfully"
 

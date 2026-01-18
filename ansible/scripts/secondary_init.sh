@@ -12,39 +12,39 @@ echo ">>> INTERFACE: ${INTERFACE}"
 # クリーンアップ関数
 cleanup_failed_join() {
 	echo "Cleaning up failed join attempt..."
-	
+
 	# 1. kubeletを停止
 	systemctl stop kubelet 2>/dev/null || true
 	sleep 2
-	
+
 	# 2. 全てのコンテナを強制停止
-	crictl stopp $(crictl pods -q) 2>/dev/null || true
+	crictl stopp "$(crictl pods -q)" 2>/dev/null || true
 	sleep 2
-	crictl rmp $(crictl pods -q) 2>/dev/null || true
-	
+	crictl rmp "$(crictl pods -q)" 2>/dev/null || true
+
 	# 3. etcd Podを確実に削除
 	rm -f /etc/kubernetes/manifests/etcd.yaml 2>/dev/null || true
-	sleep 5  # etcdが完全に停止するまで待機
-	
+	sleep 5 # etcdが完全に停止するまで待機
+
 	# 4. その他のmanifestを削除
 	rm -f /etc/kubernetes/manifests/kube-*.yaml 2>/dev/null || true
-	
+
 	# 5. kubeconfig削除
 	rm -f /etc/kubernetes/kubelet.conf 2>/dev/null || true
 	rm -f /etc/kubernetes/bootstrap-kubelet.conf 2>/dev/null || true
 	rm -f /etc/kubernetes/admin.conf 2>/dev/null || true
 	rm -f /etc/kubernetes/controller-manager.conf 2>/dev/null || true
 	rm -f /etc/kubernetes/scheduler.conf 2>/dev/null || true
-	
+
 	# 6. PKI証明書を削除（再生成させる）
 	rm -rf /etc/kubernetes/pki 2>/dev/null || true
-	
+
 	# 7. etcdデータの完全クリーンアップ
 	rm -rf /var/lib/etcd 2>/dev/null || true
-	
+
 	# 8. kubeletデータのクリーンアップ
 	rm -rf /var/lib/kubelet/* 2>/dev/null || true
-	
+
 	echo "Cleanup complete"
 }
 
@@ -75,7 +75,7 @@ else
 			echo "Successfully joined the cluster"
 			break
 		else
-			if [ $i -lt $MAX_RETRIES ]; then
+			if [ "$i" -lt $MAX_RETRIES ]; then
 				echo "Join failed, cleaning up before retry..."
 				cleanup_failed_join
 				echo "Waiting ${RETRY_DELAY}s before retry..."
@@ -117,6 +117,6 @@ systemctl restart kubelet
 
 # 5. コントロールプレーンノードでもPodをスケジュール可能にする（taint解除）
 echo "Removing control-plane taint to allow pod scheduling..."
-kubectl --kubeconfig=/etc/kubernetes/admin.conf taint nodes $(hostname) node-role.kubernetes.io/control-plane- || true
+kubectl --kubeconfig=/etc/kubernetes/admin.conf taint nodes "$(hostname)" node-role.kubernetes.io/control-plane- || true
 
 echo ">>> Secondary Master Init Complete!"
