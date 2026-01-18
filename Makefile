@@ -8,6 +8,12 @@ help: ## このヘルプメッセージを表示
 # Phase 1: OS設定 & Kubeadm構築 (Ansible)
 # ==========================================
 
+.PHONY: ssh-copy-keys
+ssh-copy-keys: ## SSH公開鍵を各Raspberry Piにコピー
+	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.101
+	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.102
+	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.103
+
 .PHONY: ansible-setup
 ansible-setup: ## Ansibleでクラスターをセットアップ
 	cd ansible && ansible-playbook -i inventory/inventory.ini site.yml
