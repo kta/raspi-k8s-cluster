@@ -97,7 +97,7 @@ jobs:
       - name: Run Molecule tests
         working-directory: ansible
         env:
-          MOLECULE_DISTRO: debian12
+          MOLECULE_DISTRO: debian13
         run: |
           molecule test --scenario-name ${{ matrix.scenario }}
 

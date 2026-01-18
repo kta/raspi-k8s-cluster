@@ -8,7 +8,7 @@ driver:
 platforms:
   # --- Node 1: Primary Master ---
   - name: pi-node1
-    image: geerlingguy/docker-${MOLECULE_DISTRO:-debian12}-ansible:latest
+    image: geerlingguy/docker-${MOLECULE_DISTRO:-debian13}-ansible:latest
     command: /lib/systemd/systemd
     privileged: true
     volumes:
@@ -28,7 +28,7 @@ platforms:
 
   # --- Node 2: Secondary Master ---
   - name: pi-node2
-    image: geerlingguy/docker-${MOLECULE_DISTRO:-debian12}-ansible:latest
+    image: geerlingguy/docker-${MOLECULE_DISTRO:-debian13}-ansible:latest
     command: /lib/systemd/systemd
     privileged: true
     volumes:
@@ -46,7 +46,7 @@ platforms:
 
   # --- Node 3: Secondary Master ---
   - name: pi-node3
-    image: geerlingguy/docker-${MOLECULE_DISTRO:-debian12}-ansible:latest
+    image: geerlingguy/docker-${MOLECULE_DISTRO:-debian13}-ansible:latest
     command: /lib/systemd/systemd
     privileged: true
     volumes:
