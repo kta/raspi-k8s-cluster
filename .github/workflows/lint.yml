@@ -27,7 +27,7 @@ jobs:
       - name: Run ansible-lint
         run: |
           # site.yml と reset.yml をチェック
-          cd ansible && ansible-lint site.yml reset.yml upgrade.yml verify.yml
+          cd ansible && ansible-lint site.yml reset.yml upgrade.yml verify.yml fetch-kubeconfig.yml
 
   # --- Job 2: ShellScriptのチェック ---
   shellcheck:

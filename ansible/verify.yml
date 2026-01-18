@@ -1,7 +1,7 @@
 ---
 - name: Verify Kubernetes Cluster Health & HA Status
   hosts: primary_master
-  become: yes
+  become: true
   tasks:
     # ---------------------------------------------------
     # 1. ノードのステータス確認 (3台とも Ready か？)
@@ -33,7 +33,7 @@
       retries: 20
       delay: 15
       changed_when: false
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Assert all system pods are running
       assert:
@@ -45,11 +45,11 @@
     # ---------------------------------------------------
     # 3. HA (Load Balancer & Keepalived) の動作確認
     # ---------------------------------------------------
-    - name: Check API Server via VIP ({{ vip }}:{{ haproxy_port }})
+    - name: Check API Server via VIP
       uri:
         url: "https://{{ vip }}:{{ haproxy_port }}/livez"
-        validate_certs: no
-        return_content: yes
+        validate_certs: false
+        return_content: true
       register: vip_check
       until: vip_check.status == 200
       retries: 12
@@ -73,6 +73,6 @@
 
     - name: Print Cluster Status
       debug:
-        msg: 
+        msg:
           - "🎉 Cluster Verification Complete!"
           - "{{ nodes_out.stdout_lines }}"

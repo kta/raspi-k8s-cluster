@@ -3,7 +3,7 @@
   hosts: all_masters
   become: true
   serial: 1  # 【超重要】1台ずつ実行して、クラスタ全滅を防ぐ
-  
+
   # 変数は inventory.ini から読み込む
   # 実行時に -e "target_version=1.32.0-1.1" のように指定する想定
 
@@ -32,7 +32,7 @@
       apt:
         name: "kubeadm={{ target_version }}"
         state: present
-        update_cache: yes
+        update_cache: true
 
     - name: Hold kubeadm again
       command: apt-mark hold kubeadm
@@ -40,7 +40,10 @@
     - name: Verify kubeadm version
       command: kubeadm version
       register: kubeadm_ver
-    - debug: msg="{{ kubeadm_ver.stdout }}"
+
+    - name: Display kubeadm version
+      debug:
+        msg: "{{ kubeadm_ver.stdout }}"
 
     # --- 4. アップグレードプランの適用 ---
     # Primary Master と Secondary Master でコマンドが違う
@@ -58,7 +61,7 @@
 
     - name: Install new kubelet & kubectl
       apt:
-        name: 
+        name:
           - "kubelet={{ target_version }}"
           - "kubectl={{ target_version }}"
         state: present
