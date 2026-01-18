@@ -17,10 +17,10 @@ spec:
       releaseName: atlantis
       valuesObject:
         # GitHub 連携設定
-        orgAllowlist: "github.com/YOUR_USERNAME/*"
+        orgAllowlist: "github.com/kta/*"
 
         github:
-          user: YOUR_USERNAME
+          user: kta
           # Phase 2 で作成した Secret を参照
           secret: atlantis-github-secret
           secretKey: token
@@ -46,7 +46,7 @@ spec:
         repoConfig: |
           ---
           repos:
-            - id: github.com/YOUR_USERNAME/raspi-k8s-cluster
+            - id: github.com/kta/raspi-k8s-cluster
               branch: /.*/
               allowed_overrides: [workflow, apply_requirements]
               allow_custom_workflows: true

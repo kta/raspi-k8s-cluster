@@ -10,7 +10,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_USERNAME/raspi-k8s-cluster.git
+    repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
     # 環境に応じて overlay を指定する
     # production: k8s/infra/metallb/overlays/production

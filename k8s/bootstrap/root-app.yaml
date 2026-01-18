@@ -10,7 +10,7 @@ spec:
 
   source:
     # ここを自分のリポジトリ URL に変更
-    repoURL: https://github.com/your-actual-username/raspi-k8s-cluster.git
+    repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
     path: k8s/infra
     directory:
