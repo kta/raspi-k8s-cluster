@@ -16,42 +16,42 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 EXPECTED_ENV="${1:-production}"
 
 if [[ "$EXPECTED_ENV" != "production" && "$EXPECTED_ENV" != "vagrant" ]]; then
-  echo "❌ エラー: environment は production または vagrant である必要があります"
-  exit 1
+	echo "❌ エラー: environment は production または vagrant である必要があります"
+	exit 1
 fi
 
 TFVARS_FILE="$PROJECT_ROOT/terraform/bootstrap/terraform.auto.tfvars"
 
 # ファイルが存在しない場合
 if [[ ! -f "$TFVARS_FILE" ]]; then
-  echo "⚠️  terraform.auto.tfvars が見つかりません"
-  echo "生成が必要です: make generate-tfvars ENV=$EXPECTED_ENV"
-  exit 2
+	echo "⚠️  terraform.auto.tfvars が見つかりません"
+	echo "生成が必要です: make generate-tfvars ENV=$EXPECTED_ENV"
+	exit 2
 fi
 
 # 環境を抽出
 ACTUAL_ENV=$(grep "^environment" "$TFVARS_FILE" | cut -d'=' -f2 | tr -d ' "')
 
 if [[ -z "$ACTUAL_ENV" ]]; then
-  echo "❌ エラー: terraform.auto.tfvars に environment が設定されていません"
-  echo "再生成が必要です: make generate-tfvars ENV=$EXPECTED_ENV"
-  exit 1
+	echo "❌ エラー: terraform.auto.tfvars に environment が設定されていません"
+	echo "再生成が必要です: make generate-tfvars ENV=$EXPECTED_ENV"
+	exit 1
 fi
 
 # 環境が一致するかチェック
 if [[ "$ACTUAL_ENV" != "$EXPECTED_ENV" ]]; then
-  echo "❌ エラー: 環境が一致しません"
-  echo "  期待: $EXPECTED_ENV"
-  echo "  実際: $ACTUAL_ENV"
-  echo ""
-  echo "修正方法:"
-  echo "  1. 正しい環境の tfvars を生成"
-  echo "     make generate-tfvars ENV=$EXPECTED_ENV"
-  echo ""
-  echo "  2. または、既存の tfvars を削除して再生成"
-  echo "     rm $TFVARS_FILE"
-  echo "     make terraform-apply ENV=$EXPECTED_ENV"
-  exit 1
+	echo "❌ エラー: 環境が一致しません"
+	echo "  期待: $EXPECTED_ENV"
+	echo "  実際: $ACTUAL_ENV"
+	echo ""
+	echo "修正方法:"
+	echo "  1. 正しい環境の tfvars を生成"
+	echo "     make generate-tfvars ENV=$EXPECTED_ENV"
+	echo ""
+	echo "  2. または、既存の tfvars を削除して再生成"
+	echo "     rm $TFVARS_FILE"
+	echo "     make terraform-apply ENV=$EXPECTED_ENV"
+	exit 1
 fi
 
 # 一致している場合

@@ -18,16 +18,16 @@ INVENTORY_FILE="${1:-$PROJECT_ROOT/ansible/inventory/inventory.ini}"
 OUTPUT_FILE="${2:-$PROJECT_ROOT/terraform/bootstrap/terraform.auto.tfvars}"
 
 if [[ ! -f "$INVENTORY_FILE" ]]; then
-  echo "❌ エラー: インベントリファイルが見つかりません: $INVENTORY_FILE"
-  exit 1
+	echo "❌ エラー: インベントリファイルが見つかりません: $INVENTORY_FILE"
+	exit 1
 fi
 
 echo "📋 インベントリファイルを読み込み中: $INVENTORY_FILE"
 
 # Ansibleインベントリから変数を抽出
 extract_var() {
-  local var_name="$1"
-  grep "^${var_name}=" "$INVENTORY_FILE" | head -1 | cut -d'=' -f2 | tr -d ' '
+	local var_name="$1"
+	grep "^${var_name}=" "$INVENTORY_FILE" | head -1 | cut -d'=' -f2 | tr -d ' '
 }
 
 ENVIRONMENT=$(extract_var "environment")
@@ -42,10 +42,10 @@ GITHUB_REPO_URL=""
 
 TFVARS_FILE="$PROJECT_ROOT/terraform/bootstrap/terraform.tfvars"
 if [[ -f "$TFVARS_FILE" ]]; then
-  echo "📄 既存のterraform.tfvarsからGitHub設定を読み込み中..."
-  GITHUB_USERNAME=$(grep '^github_username' "$TFVARS_FILE" | cut -d'=' -f2 | tr -d ' "')
-  GITHUB_TOKEN=$(grep '^github_token' "$TFVARS_FILE" | cut -d'=' -f2 | tr -d ' "')
-  GITHUB_REPO_URL=$(grep '^github_repo_url' "$TFVARS_FILE" | cut -d'=' -f2 | tr -d ' "')
+	echo "📄 既存のterraform.tfvarsからGitHub設定を読み込み中..."
+	GITHUB_USERNAME=$(grep '^github_username' "$TFVARS_FILE" | cut -d'=' -f2 | tr -d ' "')
+	GITHUB_TOKEN=$(grep '^github_token' "$TFVARS_FILE" | cut -d'=' -f2 | tr -d ' "')
+	GITHUB_REPO_URL=$(grep '^github_repo_url' "$TFVARS_FILE" | cut -d'=' -f2 | tr -d ' "')
 fi
 
 # デフォルト値を設定
@@ -54,7 +54,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}"
 GITHUB_REPO_URL="${GITHUB_REPO_URL:-https://github.com/kta/raspi-k8s-cluster.git}"
 
 # tfvars ファイルを生成
-cat > "$OUTPUT_FILE" <<EOF
+cat >"$OUTPUT_FILE" <<EOF
 # 自動生成されたファイル
 # 生成元: $INVENTORY_FILE
 # 生成日時: $(date '+%Y-%m-%d %H:%M:%S')

@@ -16,28 +16,28 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENVIRONMENT="${1:-production}"
 
 if [[ "$ENVIRONMENT" != "production" && "$ENVIRONMENT" != "vagrant" ]]; then
-  echo "❌ エラー: environment は production または vagrant である必要があります"
-  exit 1
+	echo "❌ エラー: environment は production または vagrant である必要があります"
+	exit 1
 fi
 
 # インベントリファイルを決定
 if [[ "$ENVIRONMENT" == "production" ]]; then
-  INVENTORY_FILE="$PROJECT_ROOT/ansible/inventory/inventory.ini"
+	INVENTORY_FILE="$PROJECT_ROOT/ansible/inventory/inventory.ini"
 else
-  INVENTORY_FILE="$PROJECT_ROOT/ansible/inventory/inventory_vagrant.ini"
+	INVENTORY_FILE="$PROJECT_ROOT/ansible/inventory/inventory_vagrant.ini"
 fi
 
 if [[ ! -f "$INVENTORY_FILE" ]]; then
-  echo "❌ エラー: インベントリファイルが見つかりません: $INVENTORY_FILE"
-  exit 1
+	echo "❌ エラー: インベントリファイルが見つかりません: $INVENTORY_FILE"
+	exit 1
 fi
 
 # ingress_ip を抽出
 INGRESS_IP=$(grep "^ingress_ip=" "$INVENTORY_FILE" | head -1 | cut -d'=' -f2 | tr -d ' ')
 
 if [[ -z "$INGRESS_IP" ]]; then
-  echo "❌ エラー: ingress_ip がインベントリファイルに見つかりません"
-  exit 1
+	echo "❌ エラー: ingress_ip がインベントリファイルに見つかりません"
+	exit 1
 fi
 
 # IP を nip.io 形式に変換（ドット→ハイフン）
