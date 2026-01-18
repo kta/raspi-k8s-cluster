@@ -1,4 +1,7 @@
 ---
+# ==============================================================================
+# 共通セットアップ (全マスターノード)
+# ==============================================================================
 - name: Distribute Scripts and Setup Nodes
   hosts: all_masters
   become: true
@@ -31,9 +34,9 @@
         reboot_timeout: 300
         msg: "Rebooting after package upgrade"
       when: reboot_required_file.stat.exists
-      tags: [reboot]
+      tags: [reboot]  
 
-    # --- 共通セットアップ ---
+    # --- 共通セットアップスクリプト実行 ---
     - name: Copy common script
       copy:
         src: "{{ playbook_dir }}/scripts/common_setup.sh"
@@ -57,7 +60,7 @@
         reboot_timeout: 300
         msg: "Rebooting to apply cgroup memory parameters"
       when: common_setup_result.rc == 100
-      tags: [reboot]
+      tags: [reboot]  # CIではスキップ
 
     - name: Re-copy common script after reboot
       copy:
@@ -73,7 +76,10 @@
       changed_when: true
       when: common_setup_result.rc == 100
 
-# --- Primary Master: Init実行とファイル読み取り ---
+
+# ==============================================================================
+# Primary Master: Init実行とJoinトークン生成
+# ==============================================================================
 - name: Initialize Primary Master
   hosts: primary_master
   become: true
@@ -120,7 +126,10 @@
         mode: '0600'
       become: false
 
-# --- Secondary Masters: 参加 (順次実行) ---
+
+# ==============================================================================
+# Secondary Masters: 参加 (順次実行)
+# ==============================================================================
 - name: Join Secondary Masters
   hosts: secondary_masters
   become: true
@@ -131,8 +140,7 @@
         join_cmd: "{{ lookup('file', playbook_dir + '/.join_command.tmp') }}"
       delegate_to: localhost
       become: false
-      run_once: true
-
+      
     - name: Copy secondary init script
       copy:
         src: "{{ playbook_dir }}/scripts/secondary_init.sh"
@@ -140,9 +148,9 @@
         mode: '0755'
 
     - name: Run secondary init script
-      shell: /tmp/secondary_init.sh "{{ hostvars[groups['secondary_masters'][0]]['join_cmd'] }}" "{{ vip }}" "{{ interface }}"
+      shell: /tmp/secondary_init.sh "{{ join_cmd }}" "{{ vip }}" "{{ interface }}"
       changed_when: true
-      async: 600  # 10分のタイムアウト
+      async: 600
       poll: 10
 
     - name: Wait for node to be ready
@@ -152,6 +160,7 @@
       retries: 30
       delay: 10
       changed_when: false
+      when: not is_ci_environment | default(false)
 
     - name: Wait for etcd pod to be running
       shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get pod -l component=etcd,tier=control-plane -o jsonpath='{.items[?(@.spec.nodeName=="{{ inventory_hostname }}")].status.phase}'
@@ -160,14 +169,18 @@
       retries: 30
       delay: 10
       changed_when: false
+      when: not is_ci_environment | default(false)
 
     - name: Wait additional time for etcd to stabilize
       pause:
         seconds: 20
       changed_when: false
+      when: not is_ci_environment | default(false)
 
     - name: Wait for etcd to sync before next node
       pause:
         seconds: 60
         prompt: "Waiting for etcd cluster to fully sync..."
-      when: inventory_hostname != groups['secondary_masters'][-1]
+      when:
+        - inventory_hostname != groups['secondary_masters'][-1]
+        - not is_ci_environment | default(false)
