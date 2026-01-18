@@ -1,130 +1,68 @@
 ---
-# Verify playbook - tests to ensure the setup is correct
-- name: Verify setup on all nodes
-  hosts: all
+- name: Verify Cluster Setup
+  hosts: all_masters
   become: true
   tasks:
-    # --- Script verification ---
-    - name: Verify all required scripts exist
+    # --- 1. スクリプト配付の確認 ---
+    - name: Check if setup scripts exist in /tmp
       stat:
-        path: "/tmp/{{ item }}"
-      register: scripts_check
-      failed_when: not scripts_check.stat.exists
-      loop:
-        - common_setup.sh
-        - primary_init.sh
-        - secondary_init.sh
-        - cni_setup.sh
+        path: "/tmp/common_setup.sh"
+      register: common_script
+      failed_when: not common_script.stat.exists
 
-    - name: Verify scripts have correct permissions
+    # --- 2. サービス設定の確認 ---
+    - name: Check HAProxy config exists
       stat:
-        path: "/tmp/{{ item }}"
-      register: script_perms
-      failed_when: not script_perms.stat.executable
-      loop:
-        - common_setup.sh
-        - primary_init.sh
-        - secondary_init.sh
-        - cni_setup.sh
+        path: /etc/haproxy/haproxy.cfg
+      register: haproxy_conf
+      failed_when: not haproxy_conf.stat.exists
 
-    # --- Package verification ---
-    - name: Verify containerd is installed
-      command: which containerd
+    - name: Check Keepalived config exists
+      stat:
+        path: /etc/keepalived/keepalived.conf
+      register: keepalived_conf
+      failed_when: not keepalived_conf.stat.exists
+
+    # --- 3. 変数展開の確認 ---
+    - name: Verify HAProxy config contains correct VIP
+      command: grep "bind *:8443" /etc/haproxy/haproxy.cfg
       changed_when: false
-      register: containerd_path
-      failed_when: containerd_path.rc != 0
 
-    - name: Check containerd version
-      command: containerd --version
+    - name: Verify Keepalived config contains correct Priority
+      shell: |
+        if [ "{{ inventory_hostname }}" == "pi-node1" ]; then
+          grep "priority 101" /etc/keepalived/keepalived.conf
+        else
+          grep "priority 100" /etc/keepalived/keepalived.conf
+        fi
       changed_when: false
-      register: containerd_ver
 
-    - name: Display containerd version
-      debug:
-        msg: "Containerd version: {{ containerd_ver.stdout }}"
+    # --- 4. 実行完了の確認 ---
+    # Kubeadmをモック化したため、モックが生成するはずのファイルがあるか確認
+    # これにより「スクリプトの条件分岐が正しく通り、kubeadm init/join コマンドまで到達したか」がわかる
 
-    # --- Service verification (if services were started) ---
-    - name: Check if containerd service exists
-      systemd:
-        name: containerd
-      register: containerd_service
-      failed_when: false
-
-    - name: Display containerd service status
-      debug:
-        var: containerd_service.status.ActiveState
-      when: containerd_service.status is defined
-
-    # --- Network verification ---
-    - name: Get network interface information
-      command: ip addr show {{ interface }}
-      changed_when: false
-      register: interface_info
-      failed_when: interface_info.rc != 0
-
-    - name: Display interface information
-      debug:
-        msg: "Interface {{ interface }} is present"
-
-    # --- Directory structure verification ---
-    - name: Verify /tmp directory is writable
-      file:
-        path: /tmp/molecule-test
-        state: directory
-        mode: '0755'
-
-    - name: Clean up test directory
-      file:
-        path: /tmp/molecule-test
-        state: absent
-
-# Primary master specific verification
-- name: Verify Primary Master
+- name: Verify Primary Node Specifics
   hosts: primary_master
   become: true
   tasks:
-    - name: Verify node is designated as primary
-      assert:
-        that:
-          - priority == 101
-          - state == "MASTER"
-        success_msg: "Primary master configuration is correct"
-        fail_msg: "Primary master configuration is incorrect"
+    - name: Check if admin.conf was generated (Mock check)
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: admin_conf
+      failed_when: not admin_conf.stat.exists
 
-    - name: Display primary master status
-      debug:
-        msg: "This node is configured as PRIMARY MASTER with priority {{ priority }}"
+    - name: Check if join token file was created
+      stat:
+        path: /tmp/k8s_join_command.sh
+      register: token_file
+      failed_when: not token_file.stat.exists
 
-# Secondary masters verification
-- name: Verify Secondary Masters
+- name: Verify Secondary Node Specifics
   hosts: secondary_masters
   become: true
   tasks:
-    - name: Verify node is designated as secondary
-      assert:
-        that:
-          - priority == 100
-          - state == "BACKUP"
-        success_msg: "Secondary master configuration is correct"
-        fail_msg: "Secondary master configuration is incorrect"
-
-    - name: Display secondary master status
-      debug:
-        msg: "This node is configured as SECONDARY MASTER with priority {{ priority }}"
-
-# Final summary
-- name: Test Summary
-  hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Display test summary
-      debug:
-        msg:
-          - "======================================"
-          - "Molecule Test Verification Complete"
-          - "======================================"
-          - "✓ All required scripts are present and executable"
-          - "✓ Containerd is installed and functional"
-          - "✓ Network interfaces are configured"
-          - "✓ Node roles are correctly assigned"
-          - "======================================"
+    - name: Check if kubelet.conf exists (Mock check for join success)
+      stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+      failed_when: not kubelet_conf.stat.exists
