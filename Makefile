@@ -1,5 +1,9 @@
+# ==========================================
+# ヘルプとデフォルト設定
+# ==========================================
+
 .PHONY: help
-help: ## このヘルプメッセージを表示
+help: ## 利用可能なコマンド一覧を表示
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .DEFAULT_GOAL := help
@@ -81,17 +85,21 @@ show-ingress-urls: ## nip.io/sslip.io を使ったIngress URLを表示
 # ==========================================
 
 .PHONY: ssh-copy-keys
-ssh-copy-keys: ## SSH公開鍵を各Raspberry Piにコピー
-	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.101
-	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.102
-	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.103
+ssh-copy-keys: ## SSH公開鍵を各ノードにコピー（初回のみ）
+	@echo "🔑 SSH公開鍵をコピー中..."
+	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.101 || true
+	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.102 || true
+	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.103 || true
+	@echo "✅ SSH鍵のコピーが完了しました"
 
 .PHONY: ansible-setup
-ansible-setup: generate-tfvars patch-argocd-apps ## Ansibleでクラスターをセットアップ
+ansible-setup: generate-tfvars patch-argocd-apps ## 【Phase 1】Ansibleでクラスタをセットアップ（本番環境）
+	@echo "🔧 クラスタをセットアップ中 (環境: $(ENVIRONMENT))..."
 	cd ansible && ansible-playbook -i inventory/inventory.ini site.yml
 
 .PHONY: ansible-setup-vagrant
-ansible-setup-vagrant: ## Vagrant環境でクラスターをセットアップ
+ansible-setup-vagrant: ## 【Phase 1】Ansibleでクラスタをセットアップ（Vagrant環境）
+	@echo "🔧 Vagrant環境のクラスタをセットアップ中..."
 	$(MAKE) ENV=vagrant generate-tfvars
 	$(MAKE) ENV=vagrant patch-argocd-apps
 	vagrant up
@@ -118,13 +126,13 @@ ansible-upgrade: ## クラスターをアップグレード
 	cd ansible && ansible-playbook -i inventory/inventory.ini upgrade.yml
 
 .PHONY: ansible-dev-debug
-ansible-dev-debug: ## クラスター開発用にsetup（Vagrant再構築＋Ansible実行＋検証）
+ansible-dev-debug: ## Vagrant環境の完全リビルド（開発用）
 	vagrant destroy -f
 	vagrant up
-	cd ansible 
-	ansible-playbook -i inventory/inventory_vagrant.ini site.yml
-	ansible-playbook -i inventory/inventory_vagrant.ini fetch-kubeconfig.yml
-	ansible-playbook -i inventory/inventory_vagrant.ini verify.yml
+	cd ansible && \
+		ansible-playbook -i inventory/inventory_vagrant.ini site.yml && \
+		ansible-playbook -i inventory/inventory_vagrant.ini fetch-kubeconfig.yml && \
+		ansible-playbook -i inventory/inventory_vagrant.ini verify.yml
 
 
 # ==========================================
@@ -147,14 +155,15 @@ terraform-plan: ## Terraformプランを表示
 	cd terraform/bootstrap && terraform plan
 
 .PHONY: terraform-apply
-terraform-apply: ## Terraformを適用 (ArgoCD等をインストール)
+terraform-apply: ## 【Phase 2】Terraform適用（ArgoCDインストール）
 	@if [ ! -f terraform/bootstrap/terraform.auto.tfvars ]; then \
 		echo "⚠️  terraform.auto.tfvars が見つかりません。生成します..."; \
 		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
 	else \
 		./scripts/verify_tfvars_environment.sh $(ENVIRONMENT) || \
-		(echo "再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
+		(echo "🔄 環境不一致を検出。再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
 	fi
+	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT))..."
 	cd terraform/bootstrap && terraform apply
 
 .PHONY: terraform-apply-vagrant
@@ -170,8 +179,10 @@ terraform-destroy: ## Terraformリソースを削除
 # ==========================================
 
 .PHONY: argocd-bootstrap
-argocd-bootstrap: ## ArgoCD Root Appを適用
+argocd-bootstrap: ## 【Phase 3】ArgoCD Root App適用（GitOps開始）
+	@echo "🎯 ArgoCD Root Appを適用中..."
 	kubectl apply -f k8s/bootstrap/root-app.yaml
+	@echo "✅ GitOps管理を開始しました"
 
 .PHONY: argocd-sync
 argocd-sync: ## すべてのArgoCD Appを同期
@@ -227,7 +238,7 @@ logs-primary: ## Primary nodeのログを確認
 # ==========================================
 
 .PHONY: setup-all
-setup-all: ## 全フェーズを実行（実機環境）
+setup-all: ## 【本番環境】全フェーズを一括実行（Phase 1-3）
 	@echo "🚀 全フェーズのセットアップを開始 (環境: $(ENVIRONMENT))..."
 	$(MAKE) env-info ENV=$(ENVIRONMENT)
 	$(MAKE) generate-tfvars ENV=$(ENVIRONMENT)
@@ -242,7 +253,7 @@ setup-all: ## 全フェーズを実行（実機環境）
 	@echo "次のコマンドでクラスターの状態を確認してください: make status"
 
 .PHONY: setup-all-vagrant
-setup-all-vagrant: ## 全フェーズを実行（Vagrant環境）
+setup-all-vagrant: ## 【Vagrant環境】全フェーズを一括実行（Phase 1-3）
 	@echo "🚀 Vagrant環境の全フェーズセットアップを開始..."
 	$(MAKE) env-info ENV=vagrant
 	$(MAKE) generate-tfvars ENV=vagrant
