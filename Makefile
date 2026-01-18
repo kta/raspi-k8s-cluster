@@ -47,9 +47,10 @@ ansible-upgrade: ## クラスターをアップグレード
 ansible-dev-debug: ## クラスター開発用にsetup（Vagrant再構築＋Ansible実行＋検証）
 	vagrant destroy -f
 	vagrant up
-	cd ansible && ansible-playbook -i inventory/inventory_vagrant.ini site.yml
-	cd ansible-playbook -i inventory/inventory_vagrant.ini fetch-kubeconfig.yml
-	cd ansible-playbook -i inventory/inventory_vagrant.ini verify.yml
+	cd ansible 
+	ansible-playbook -i inventory/inventory_vagrant.ini site.yml
+	ansible-playbook -i inventory/inventory_vagrant.ini fetch-kubeconfig.yml
+	ansible-playbook -i inventory/inventory_vagrant.ini verify.yml
 
 
 # ==========================================
