@@ -115,4 +115,8 @@ echo "CNI plugin symlinks created."
 echo "Restarting kubelet..."
 systemctl restart kubelet
 
+# 5. コントロールプレーンノードでもPodをスケジュール可能にする（taint解除）
+echo "Removing control-plane taint to allow pod scheduling..."
+kubectl --kubeconfig=/etc/kubernetes/admin.conf taint nodes $(hostname) node-role.kubernetes.io/control-plane- || true
+
 echo ">>> Secondary Master Init Complete!"
