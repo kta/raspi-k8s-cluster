@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(make ansible-reset:*)",
-      "Bash(ansible-playbook:*)"
+      "Bash(ansible-playbook:*)",
+      "Bash(ssh:*)"
     ]
   }
 }

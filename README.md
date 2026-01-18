@@ -32,10 +32,6 @@ raspi-k8s-cluster/
 │   ├── inventory/
 │   │   ├── inventory.ini        # 本番環境のインベントリ
 │   │   └── inventory_vagrant.ini # Vagrant環境のインベントリ
-│   ├── roles/
-│   │   ├── common/              # swap無効化, cgroup設定(重要), 依存pkg
-│   │   ├── container-runtime/   # containerd のインストール & 設定
-│   │   └── kubeadm/             # kubeadm init/join の実行
 │   ├── scripts/                 # 構築ロジック（シェルスクリプト）
 │   │   ├── common_setup.sh      # 全ノード共通設定
 │   │   ├── primary_init.sh      # Primaryノード初期化
@@ -84,6 +80,22 @@ brew install k9s
 
 ### 2. 設定ファイルの編集
 
+raspberry piのIPを固定していきます
+sshで入り、
+`ipv4.addresses 192.168.1.101/24` の部分を101-103にそれぞれ修正して、実行してください。
+
+```bash
+sudo nmcli connection modify "netplan-eth0" \
+  ipv4.addresses 192.168.1.101/24 \
+  ipv4.gateway 192.168.1.1 \
+  ipv4.dns "8.8.8.8 1.1.1.1" \
+  ipv4.method manual
+
+sudo nmcli connection up "netplan-eth0"
+```
+
+
+
 `ansible/inventory/inventory.ini` を環境に合わせて編集します：
 
 ```ini
@@ -118,6 +130,10 @@ make setup-all
 または、個別に実行：
 
 ```bash
+
+# Phase 0: 鍵交換 (パスワードなしでansibleが動作するように)
+make ssh-copy-keys
+
 # Phase 1: Ansibleでクラスター構築
 make ansible-setup
 

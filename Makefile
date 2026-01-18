@@ -134,6 +134,6 @@ logs-primary: ## Primary nodeのログを確認
 # ==========================================
 
 .PHONY: setup-all
-setup-all: ansible-setup fetch-kubeconfig terraform-apply argocd-bootstrap ## 全フェーズを実行
+setup-all: ssh-copy-keys ansible-setup fetch-kubeconfig terraform-apply argocd-bootstrap ## 全フェーズを実行
 	@echo "✅ すべてのセットアップが完了しました！"
 	@echo "次のコマンドでクラスターの状態を確認してください: make status"
