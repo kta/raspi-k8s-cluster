@@ -22,40 +22,40 @@ jobs:
   # ------------------------------------------------------------------
   # Job 1: Lint & Static Analysis
   # ------------------------------------------------------------------
-  # lint:
-  #   name: 🛡️ Lint & Static Analysis
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Check out code
-  #       uses: actions/checkout@v4
+  lint:
+    name: 🛡️ Lint & Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
 
-  #     - name: Set up Python 3.11
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.11'
-  #         # cache: 'pip'  <-- 削除しました（requirements.txtがないため）
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          # cache: 'pip'  <-- 削除しました（requirements.txtがないため）
 
-  #     - name: Install dependencies
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install ansible-lint yamllint
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-lint yamllint
 
-  #     - name: Run yamllint
-  #       run: yamllint -c .yamllint ansible/
+      # - name: Run yamllint
+      #   run: yamllint -c .yamllint ansible/
 
-  #     - name: Run ansible-lint
-  #       run: |
-  #         cd ansible
-  #         ansible-lint site.yml verify.yml reset.yml upgrade.yml
+      # - name: Run ansible-lint
+      #   run: |
+      #     cd ansible
+      #     ansible-lint site.yml verify.yml reset.yml upgrade.yml
 
-  #     - name: Install shellcheck
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y shellcheck
+      # - name: Install shellcheck
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y shellcheck
 
-  #     - name: Run shellcheck on scripts
-  #       run: |
-  #         find ansible/scripts -name "*.sh" -type f -exec shellcheck {} +
+      - name: Run shellcheck on scripts
+        run: |
+          find ansible/scripts -name "*.sh" -type f -exec shellcheck {} +
 
   # ------------------------------------------------------------------
   # Job 2: Integration Test (Molecule)
