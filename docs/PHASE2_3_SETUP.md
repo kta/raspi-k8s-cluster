@@ -1701,11 +1701,11 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -
 kubectl create secret generic repo-creds \
   --from-literal=type=git \
   --from-literal=url=https://github.com \
-  --from-literal=username=YOUR_USERNAME \
+  --from-literal=username=kta \
   --from-literal=password=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
   --namespace argocd \
   --dry-run=client -o yaml | \
-kubectl label --local -f - --dry-run=output -o yaml \
+kubectl label -f - --local -o yaml \
   argocd.argoproj.io/secret-type=repo-creds | \
 kubeseal --format yaml \
   --controller-name sealed-secrets \
