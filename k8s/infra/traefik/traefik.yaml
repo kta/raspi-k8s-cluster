@@ -40,20 +40,22 @@ spec:
           general:
             level: INFO
 
-        # ポート設定（非rootユーザーで実行するため8000/8443を使用）
+        # ポート設定（非rootユーザーで実行するため、コンテナ内部でポート8000/8443を使用）
         ports:
           web:
             port: 8000
             exposedPort: 80
+            containerPort: 8000
           websecure:
             port: 8443
             exposedPort: 443
+            containerPort: 8443
             # TLS を有効化
             tls:
               enabled: true
         
-        # securityContext でCAP_NET_BIND_SERVICEを追加
-        securityContext:
+        # コンテナのsecurityContext
+        containerSecurityContext:
           capabilities:
             add:
               - NET_BIND_SERVICE
