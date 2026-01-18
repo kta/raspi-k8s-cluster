@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: atlantis-ingress
+  name: argocd-ingress
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
@@ -9,13 +9,13 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/kta/raspi-k8s-cluster.git
+    repoURL: https://github.com/YOUR_USERNAME/raspi-k8s-cluster.git
     targetRevision: main
-    path: k8s/infra/atlantis/resources
+    path: k8s/infra/argocd
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: atlantis
+    namespace: argocd
 
   syncPolicy:
     automated:

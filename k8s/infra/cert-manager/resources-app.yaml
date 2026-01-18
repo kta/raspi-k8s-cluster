@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: atlantis-ingress
+  name: cert-manager-resources
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: default
 
   source:
-    repoURL: https://github.com/kta/raspi-k8s-cluster.git
+    repoURL: https://github.com/YOUR_USERNAME/raspi-k8s-cluster.git
     targetRevision: main
-    path: k8s/infra/atlantis/resources
+    path: k8s/infra/cert-manager/resources
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: atlantis
+    namespace: cert-manager
 
   syncPolicy:
     automated:
