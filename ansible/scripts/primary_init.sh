@@ -7,6 +7,7 @@ INTERFACE=$3
 TOKEN_FILE="/tmp/k8s_join_command.sh"
 
 echo ">>> Starting Primary Init..."
+echo ">>> Using Interface: ${INTERFACE}"
 
 # 1. クラスター未作成なら init 実行
 if [ ! -f /etc/kubernetes/admin.conf ]; then
@@ -35,11 +36,46 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 
 	# CNI (Flannel) のインストール
 	echo "Installing Flannel CNI..."
-	if kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml; then
-		echo "Flannel manifest applied successfully."
+	# ローカルの修正済みマニフェストを使用（--iface を動的に設定）
+	# Vagrant環境では /vagrant/k8s/cni/kube-flannel.yml
+	# 実機環境では Ansibleが /tmp/kube-flannel.yml にコピー済み
+	if [ -f /vagrant/k8s/cni/kube-flannel.yml ]; then
+		FLANNEL_MANIFEST="/vagrant/k8s/cni/kube-flannel.yml"
+	elif [ -f /tmp/kube-flannel.yml ]; then
+		FLANNEL_MANIFEST="/tmp/kube-flannel.yml"
 	else
-		echo "ERROR: Failed to apply Flannel manifest"
-		exit 1
+		FLANNEL_MANIFEST=""
+	fi
+
+	if [ -n "$FLANNEL_MANIFEST" ]; then
+		echo "Using local Flannel manifest: $FLANNEL_MANIFEST"
+		# インターフェースが指定されていれば、マニフェストを動的にパッチ
+		if [ -n "$INTERFACE" ]; then
+			echo "Patching Flannel manifest to use interface: $INTERFACE"
+			# 既存の --iface=eth1 を置換、または --kube-subnet-mgr の後に追加
+			if grep -q "\-\-iface=" "$FLANNEL_MANIFEST"; then
+				# 既存の --iface を置換
+				sed -i "s/--iface=.*/--iface=$INTERFACE/" "$FLANNEL_MANIFEST"
+			else
+				# --iface が存在しない場合は --kube-subnet-mgr の次の行に追加
+				sed -i "/--kube-subnet-mgr/a\        - --iface=$INTERFACE" "$FLANNEL_MANIFEST"
+			fi
+		fi
+		if kubectl apply -f "$FLANNEL_MANIFEST"; then
+			echo "Flannel manifest applied successfully."
+		else
+			echo "ERROR: Failed to apply Flannel manifest"
+			exit 1
+		fi
+	else
+		echo "Local manifest not found, downloading from upstream..."
+		if kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml; then
+			echo "Flannel manifest applied successfully."
+			echo "WARNING: Upstream manifest does not include --iface. Manual patching may be required."
+		else
+			echo "ERROR: Failed to apply Flannel manifest"
+			exit 1
+		fi
 	fi
 
 	# MasterにもPodを置けるようにTaint解除 (3台構成なら必須)
