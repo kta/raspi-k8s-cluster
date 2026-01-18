@@ -29,3 +29,24 @@ Sessionx.vim
 tags
 # Persistent undo
 [._]*.un~
+
+### Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+### Kubernetes
+kubeconfig
+*.kubeconfig
+.kube/config
+
+### Ansible
+*.retry
+.ansible/

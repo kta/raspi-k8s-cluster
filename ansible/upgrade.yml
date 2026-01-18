@@ -67,10 +67,9 @@
       command: apt-mark hold kubelet kubectl
 
     - name: Restart Kubelet
-      systemctl:
+      service:
         name: kubelet
         state: restarted
-        daemon_reload: yes
 
     # --- 6. 復帰: メンテナンスモード解除 ---
     - name: Uncordon node (Bring back to cluster)

@@ -7,7 +7,7 @@
     # --- 共通セットアップ ---
     - name: Copy common script
       copy:
-        src: scripts/common_setup.sh
+        src: "{{ playbook_dir }}/scripts/common_setup.sh"
         dest: /tmp/common_setup.sh
         mode: '0755'
 
@@ -32,7 +32,7 @@
   tasks:
     - name: Copy init scripts
       copy:
-        src: "{{ item }}"
+        src: "{{ playbook_dir }}/{{ item }}"
         dest: "/tmp/{{ item | basename }}"
         mode: '0755'
       loop:
@@ -68,7 +68,7 @@
   tasks:
     - name: Copy secondary init script
       copy:
-        src: scripts/secondary_init.sh
+        src: "{{ playbook_dir }}/scripts/secondary_init.sh"
         dest: /tmp/secondary_init.sh
         mode: '0755'
 
