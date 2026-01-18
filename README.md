@@ -296,3 +296,100 @@ kubectl logs -n kube-system -l app=flannel
 ## 📄 ライセンス
 
 MIT License
+## 🌐 環境別IP管理
+
+このプロジェクトは、**実機（production）** と **Vagrant環境** で異なるIPアドレスレンジを自動的に使い分けます。
+
+### クイックスタート
+
+#### 実機環境（production）
+```bash
+make ansible-setup ENV=production
+make fetch-kubeconfig
+make terraform-apply
+make argocd-bootstrap
+```
+
+#### Vagrant環境
+```bash
+make ansible-setup-vagrant  # ENV=vagrant が自動設定される
+make fetch-kubeconfig-vagrant
+make terraform-apply ENV=vagrant
+make argocd-bootstrap
+```
+
+### IP設定
+
+| 環境 | ノードIP | VIP | MetalLB IPプール | Ingress IP |
+|------|---------|-----|----------------|-----------|
+| production | 192.168.1.101-103 | 192.168.1.100 | 192.168.1.200-220 | 192.168.1.200 |
+| vagrant | 192.168.56.101-103 | 192.168.56.100 | 192.168.56.200-220 | 192.168.56.200 |
+
+### 仕組み
+
+1. **Ansible インベントリ**で環境変数を定義（真実の源）
+2. **自動生成スクリプト**がTerraform変数を作成
+3. **Kustomize overlays**で環境別マニフェストを管理
+4. **ArgoCD**が適切なoverlayをデプロイ
+
+詳細は以下を参照：
+- 📖 [環境別IP管理ガイド](docs/environment_ip_management.md) - 完全な仕組みの説明
+- ⚡ [クイックスタート](docs/QUICKSTART_IP_MANAGEMENT.md) - すぐに始めたい方向け
+
+### IP設定を変更したい時
+
+```bash
+# 1. インベントリファイルを編集
+vim ansible/inventory/inventory.ini
+
+# 2. Terraform変数を再生成
+make generate-tfvars ENV=production
+
+# 3. ArgoCD Applicationを更新
+make patch-argocd-apps ENV=production
+
+# 4. Terraformを再実行
+cd terraform/bootstrap && terraform apply
+```
+
+
+## 🌐 サービスアクセス（`/etc/hosts` 不要）
+
+デプロイしたサービス（ArgoCD、Atlantis、Traefik）に `/etc/hosts` を編集せずにアクセスできます。
+
+### 方法1: port-forward（最もシンプル）
+
+```bash
+# 全サービスに一度にポートフォワード
+make port-forward-all
+
+# または個別に
+make port-forward-argocd    # http://localhost:8080
+make port-forward-atlantis  # http://localhost:4141
+make port-forward-traefik   # http://localhost:9000
+```
+
+### 方法2: nip.io（インターネット接続あり）
+
+```bash
+# URLを表示
+make show-ingress-urls ENV=production
+
+# 出力例:
+# http://argocd-192-168-1-200.nip.io
+# http://atlantis-192-168-1-200.nip.io
+```
+
+### 方法3: dnsmasq（本番に近い環境）
+
+```bash
+# ローカルDNSを自動設定（初回のみ）
+make setup-local-dns ENV=production
+
+# 以下でアクセス可能になる
+# http://argocd.local
+# http://atlantis.local
+# http://traefik.local
+```
+
+詳細は [DNS不要のアクセス方法ガイド](docs/DNS_FREE_ACCESS.md) を参照してください。

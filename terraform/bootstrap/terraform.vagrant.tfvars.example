@@ -1,0 +1,10 @@
+# Vagrant環境用 terraform.tfvars (参考)
+
+github_username = "your-username"
+github_token    = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+github_repo_url = "https://github.com/your-username/raspi-k8s-cluster.git"
+
+environment      = "vagrant"
+metallb_ip_range = "192.168.56.200-192.168.56.220"
+ingress_ip       = "192.168.56.200"
+vip              = "192.168.56.100"

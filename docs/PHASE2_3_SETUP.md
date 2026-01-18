@@ -725,7 +725,7 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 # 1. k8s/ ディレクトリのファイルを作成（上記のマニフェストを参照）
 
 # 2. YOUR_USERNAME を自分のユーザー名に置換
-find k8s -name "*.yaml" -exec sed -i '' 's/YOUR_USERNAME/your-actual-username/g' {} \;
+find k8s -name "*.yaml" -exec sed -i '' 's/kta/your-actual-username/g' {} \;
 
 # 3. Git にコミット・プッシュ
 git add k8s/
@@ -1662,7 +1662,7 @@ kubectl get svc -n traefik
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/YOUR_USERNAME/raspi-k8s-cluster.git
+git clone https://github.com/kta/raspi-k8s-cluster.git
 cd raspi-k8s-cluster
 
 # 2. kubeseal をインストール

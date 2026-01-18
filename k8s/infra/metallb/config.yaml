@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb-config
+  namespace: argocd
+  annotations:
+    # MetalLB 本体の後にデプロイ
+    argocd.argoproj.io/sync-wave: "-4"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_USERNAME/raspi-k8s-cluster.git
+    targetRevision: main
+    # 環境に応じて overlay を指定する
+    # production: k8s/infra/metallb/overlays/production
+    # vagrant: k8s/infra/metallb/overlays/vagrant
+    path: k8s/infra/metallb/overlays/production
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

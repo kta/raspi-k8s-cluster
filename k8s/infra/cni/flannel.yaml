@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cni-flannel
+  namespace: argocd
+  annotations:
+    # 最初にデプロイ（他のコンポーネントより先に）
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  project: default
+
+  source:
+    repoURL: https://flannel-io.github.io/flannel
+    chart: flannel
+    targetRevision: v0.26.4
+    helm:
+      releaseName: flannel
+      valuesObject:
+        podCidr: "10.244.0.0/16"
+        flannel:
+          backend: "vxlan"
+        # ARM64 対応イメージを使用
+        image:
+          repository: flannel/flannel
+          tag: v0.26.4
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-flannel
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

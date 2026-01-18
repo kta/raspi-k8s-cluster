@@ -1,0 +1,24 @@
+# このファイルは Git にコミットしないでください
+
+github_username = "username"
+github_token    = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+github_repo_url = "https://github.com/your-username/example-repo.git"
+
+# 環境設定
+environment = "production"  # production or vagrant
+
+# ネットワーク設定
+# 実機環境の例
+metallb_ip_range = "192.168.1.200-192.168.1.220"
+ingress_ip       = "192.168.1.200"
+vip              = "192.168.1.100"
+
+# Vagrant環境の場合は以下のように変更
+# metallb_ip_range = "192.168.56.200-192.168.56.220"
+# ingress_ip       = "192.168.56.200"
+# vip              = "192.168.56.100"
+
+# オプション: デフォルト値を上書きする場合
+# kubeconfig_path      = "~/.kube/config"
+# argocd_namespace     = "argocd"
+# argocd_chart_version = "7.7.16"

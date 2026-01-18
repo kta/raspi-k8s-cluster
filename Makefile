@@ -5,6 +5,78 @@ help: ## このヘルプメッセージを表示
 .DEFAULT_GOAL := help
 
 # ==========================================
+# 環境検出とセットアップ
+# ==========================================
+
+# 環境変数 ENV で環境を指定可能 (production または vagrant)
+# 指定がない場合は inventory.ini から自動検出
+ENV ?= auto
+
+# インベントリファイルの決定
+ifeq ($(ENV),vagrant)
+	INVENTORY := ansible/inventory/inventory_vagrant.ini
+	ENVIRONMENT := vagrant
+else ifeq ($(ENV),production)
+	INVENTORY := ansible/inventory/inventory.ini
+	ENVIRONMENT := production
+else
+	# 自動検出: デフォルトは production
+	INVENTORY := ansible/inventory/inventory.ini
+	ENVIRONMENT := production
+endif
+
+.PHONY: env-info
+env-info: ## 現在の環境設定を表示
+	@echo "📋 環境設定:"
+	@echo "  ENV: $(ENV)"
+	@echo "  ENVIRONMENT: $(ENVIRONMENT)"
+	@echo "  INVENTORY: $(INVENTORY)"
+
+.PHONY: generate-tfvars
+generate-tfvars: ## Ansible インベントリから terraform.auto.tfvars を生成
+	@echo "🔄 Terraform変数を生成中 (環境: $(ENVIRONMENT))..."
+	./scripts/generate_tfvars.sh $(INVENTORY)
+
+.PHONY: patch-argocd-apps
+patch-argocd-apps: ## ArgoCD Application マニフェストを環境に合わせて更新
+	@echo "🔄 ArgoCD Applicationを更新中 (環境: $(ENVIRONMENT))..."
+	./scripts/patch_argocd_apps.sh $(ENVIRONMENT)
+
+.PHONY: validate-setup
+validate-setup: ## 環境設定を検証
+	@echo "🔍 環境設定を検証中 (環境: $(ENVIRONMENT))..."
+	./scripts/validate_setup.sh $(ENVIRONMENT)
+
+# ==========================================
+# サービスアクセス（/etc/hosts 不要）
+# ==========================================
+
+.PHONY: port-forward-argocd
+port-forward-argocd: ## ArgoCD にポートフォワード (http://localhost:8080)
+	./scripts/port_forward_services.sh argocd
+
+.PHONY: port-forward-atlantis
+port-forward-atlantis: ## Atlantis にポートフォワード (http://localhost:4141)
+	./scripts/port_forward_services.sh atlantis
+
+.PHONY: port-forward-traefik
+port-forward-traefik: ## Traefik にポートフォワード (http://localhost:9000)
+	./scripts/port_forward_services.sh traefik
+
+.PHONY: port-forward-all
+port-forward-all: ## 全サービスにポートフォワード
+	./scripts/port_forward_services.sh all
+
+.PHONY: setup-local-dns
+setup-local-dns: ## dnsmasq でローカルDNSを設定（要 sudo）
+	@echo "🔧 ローカルDNSを設定中 (環境: $(ENVIRONMENT))..."
+	./scripts/setup_local_dns.sh $(ENVIRONMENT)
+
+.PHONY: show-ingress-urls
+show-ingress-urls: ## nip.io/sslip.io を使ったIngress URLを表示
+	./scripts/generate_ingress_urls.sh $(ENVIRONMENT)
+
+# ==========================================
 # Phase 1: OS設定 & Kubeadm構築 (Ansible)
 # ==========================================
 
@@ -15,11 +87,13 @@ ssh-copy-keys: ## SSH公開鍵を各Raspberry Piにコピー
 	ssh-copy-id -i ~/.ssh/id_ed25519.pub pi@192.168.1.103
 
 .PHONY: ansible-setup
-ansible-setup: ## Ansibleでクラスターをセットアップ
+ansible-setup: generate-tfvars patch-argocd-apps ## Ansibleでクラスターをセットアップ
 	cd ansible && ansible-playbook -i inventory/inventory.ini site.yml
 
 .PHONY: ansible-setup-vagrant
 ansible-setup-vagrant: ## Vagrant環境でクラスターをセットアップ
+	$(MAKE) ENV=vagrant generate-tfvars
+	$(MAKE) ENV=vagrant patch-argocd-apps
 	vagrant up
 	cd ansible && ansible-playbook -i inventory/inventory_vagrant.ini site.yml
 
@@ -63,11 +137,29 @@ terraform-init: ## Terraformを初期化
 
 .PHONY: terraform-plan
 terraform-plan: ## Terraformプランを表示
+	@if [ ! -f terraform/bootstrap/terraform.auto.tfvars ]; then \
+		echo "⚠️  terraform.auto.tfvars が見つかりません。生成します..."; \
+		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
+	else \
+		./scripts/verify_tfvars_environment.sh $(ENVIRONMENT) || \
+		(echo "再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
+	fi
 	cd terraform/bootstrap && terraform plan
 
 .PHONY: terraform-apply
 terraform-apply: ## Terraformを適用 (ArgoCD等をインストール)
+	@if [ ! -f terraform/bootstrap/terraform.auto.tfvars ]; then \
+		echo "⚠️  terraform.auto.tfvars が見つかりません。生成します..."; \
+		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
+	else \
+		./scripts/verify_tfvars_environment.sh $(ENVIRONMENT) || \
+		(echo "再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
+	fi
 	cd terraform/bootstrap && terraform apply
+
+.PHONY: terraform-apply-vagrant
+terraform-apply-vagrant: ## Vagrant環境でTerraformを適用
+	$(MAKE) terraform-apply ENV=vagrant
 
 .PHONY: terraform-destroy
 terraform-destroy: ## Terraformリソースを削除
@@ -135,6 +227,31 @@ logs-primary: ## Primary nodeのログを確認
 # ==========================================
 
 .PHONY: setup-all
-setup-all: ssh-copy-keys ansible-setup fetch-kubeconfig terraform-apply argocd-bootstrap ## 全フェーズを実行
+setup-all: ## 全フェーズを実行（実機環境）
+	@echo "🚀 全フェーズのセットアップを開始 (環境: $(ENVIRONMENT))..."
+	$(MAKE) env-info ENV=$(ENVIRONMENT)
+	$(MAKE) generate-tfvars ENV=$(ENVIRONMENT)
+	$(MAKE) patch-argocd-apps ENV=$(ENVIRONMENT)
+	$(MAKE) validate-setup ENV=$(ENVIRONMENT)
+	$(MAKE) ssh-copy-keys
+	$(MAKE) ansible-setup ENV=$(ENVIRONMENT)
+	$(MAKE) fetch-kubeconfig
+	$(MAKE) terraform-apply ENV=$(ENVIRONMENT)
+	$(MAKE) argocd-bootstrap
 	@echo "✅ すべてのセットアップが完了しました！"
+	@echo "次のコマンドでクラスターの状態を確認してください: make status"
+
+.PHONY: setup-all-vagrant
+setup-all-vagrant: ## 全フェーズを実行（Vagrant環境）
+	@echo "🚀 Vagrant環境の全フェーズセットアップを開始..."
+	$(MAKE) env-info ENV=vagrant
+	$(MAKE) generate-tfvars ENV=vagrant
+	$(MAKE) patch-argocd-apps ENV=vagrant
+	$(MAKE) validate-setup ENV=vagrant
+	$(MAKE) vagrant-up
+	$(MAKE) ansible-setup-vagrant
+	$(MAKE) fetch-kubeconfig-vagrant
+	$(MAKE) terraform-apply ENV=vagrant
+	$(MAKE) argocd-bootstrap
+	@echo "✅ Vagrant環境のセットアップが完了しました！"
 	@echo "次のコマンドでクラスターの状態を確認してください: make status"

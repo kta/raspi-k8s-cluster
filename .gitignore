@@ -50,3 +50,11 @@ kubeconfig
 ### Ansible
 *.retry
 .ansible/
+
+
+# Auto-generated Terraform variable files
+terraform/bootstrap/terraform.auto.tfvars
+terraform/bootstrap/*.auto.tfvars
+
+# Backup files from sed
+*.bak

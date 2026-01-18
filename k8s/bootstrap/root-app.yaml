@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # ここを自分のリポジトリ URL に変更
+    repoURL: https://github.com/your-actual-username/raspi-k8s-cluster.git
+    targetRevision: main
+    path: k8s/infra
+    directory:
+      recurse: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true      # Git から削除されたリソースをクラスタからも削除
+      selfHeal: true   # クラスタ上の手動変更を Git の状態に戻す
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
