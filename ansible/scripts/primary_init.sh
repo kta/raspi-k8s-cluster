@@ -37,10 +37,12 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 	# CNI (Flannel) のインストール
 	echo "Installing Flannel CNI..."
 	# ローカルの修正済みマニフェストを使用（--iface を動的に設定）
-	# Vagrant環境では /vagrant/k8s/cni/kube-flannel.yml
+	# NOTE: k8s/infra/cni/kube-flannel.yml は ArgoCDで管理するが、
+	#       初回構築時はArgoCDがまだないため、ここで直接applyする
+	# Vagrant環境では /vagrant/k8s/infra/cni/kube-flannel.yml
 	# 実機環境では Ansibleが /tmp/kube-flannel.yml にコピー済み
-	if [ -f /vagrant/k8s/cni/kube-flannel.yml ]; then
-		FLANNEL_MANIFEST="/vagrant/k8s/cni/kube-flannel.yml"
+	if [ -f /vagrant/k8s/infra/cni/kube-flannel.yml ]; then
+		FLANNEL_MANIFEST="/vagrant/k8s/infra/cni/kube-flannel.yml"
 	elif [ -f /tmp/kube-flannel.yml ]; then
 		FLANNEL_MANIFEST="/tmp/kube-flannel.yml"
 	else
@@ -49,19 +51,23 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 
 	if [ -n "$FLANNEL_MANIFEST" ]; then
 		echo "Using local Flannel manifest: $FLANNEL_MANIFEST"
+		# 一時ファイルにコピーしてパッチを適用（元ファイルは変更しない）
+		cp "$FLANNEL_MANIFEST" /tmp/flannel-patched.yml
+
 		# インターフェースが指定されていれば、マニフェストを動的にパッチ
 		if [ -n "$INTERFACE" ]; then
 			echo "Patching Flannel manifest to use interface: $INTERFACE"
-			# 既存の --iface=eth1 を置換、または --kube-subnet-mgr の後に追加
-			if grep -q "\-\-iface=" "$FLANNEL_MANIFEST"; then
+			# 既存の --iface=XXX を置換、または --kube-subnet-mgr の後に追加
+			if grep -q "\-\-iface=" /tmp/flannel-patched.yml; then
 				# 既存の --iface を置換
-				sed -i "s/--iface=.*/--iface=$INTERFACE/" "$FLANNEL_MANIFEST"
+				sed -i "s/--iface=.*/--iface=$INTERFACE/" /tmp/flannel-patched.yml
 			else
 				# --iface が存在しない場合は --kube-subnet-mgr の次の行に追加
-				sed -i "/--kube-subnet-mgr/a\        - --iface=$INTERFACE" "$FLANNEL_MANIFEST"
+				sed -i "/--kube-subnet-mgr/a\        - --iface=$INTERFACE" /tmp/flannel-patched.yml
 			fi
 		fi
-		if kubectl apply -f "$FLANNEL_MANIFEST"; then
+
+		if kubectl apply -f /tmp/flannel-patched.yml; then
 			echo "Flannel manifest applied successfully."
 		else
 			echo "ERROR: Failed to apply Flannel manifest"

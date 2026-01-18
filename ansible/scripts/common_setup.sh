@@ -109,7 +109,7 @@ if [ "$IS_CI" != "true" ] && grep -q -E '(swap|zram)' /proc/swaps 2>/dev/null; t
 	echo ">>> Exiting with code 100 to trigger reboot..."
 	exit 100
 elif [ "$IS_CI" = "true" ] && grep -q -E '(swap|zram)' /proc/swaps 2>/dev/null; then
-    echo "⚠️  CI Environment detected. Ignoring active swap in /proc/swaps (Host swap)."
+	echo "⚠️  CI Environment detected. Ignoring active swap in /proc/swaps (Host swap)."
 fi
 echo "✅ Swap disabled successfully"
 
