@@ -21,9 +21,9 @@ platforms:
     groups:
       - all_masters
       - primary_master
+    # 【修正1】固定IP (ipv4_address) を削除し、ネットワーク名だけ指定
     networks:
       - name: k8s-cluster-net
-        ipv4_address: 172.18.0.101  # 本番のIP体系に似せる
 
   # --- Node 2: Secondary Master ---
   - name: pi-node2
@@ -42,7 +42,6 @@ platforms:
       - secondary_masters
     networks:
       - name: k8s-cluster-net
-        ipv4_address: 172.18.0.102
 
   # --- Node 3: Secondary Master ---
   - name: pi-node3
@@ -61,26 +60,28 @@ platforms:
       - secondary_masters
     networks:
       - name: k8s-cluster-net
-        ipv4_address: 172.18.0.103
 
 provisioner:
   name: ansible
   config_options:
     defaults:
-      # 人間が読める形式でログ出力
       stdout_callback: yaml
-      # Docker接続ではRebootモジュールが使えないため、Rebootタスクをスキップさせる設定
-      # Playbook側で tags: ['reboot'] をつけておく必要があります
       skip_tags: "reboot,firmware_check"
   inventory:
     group_vars:
       all:
-        k8s_version: "1.29"  # テスト用に安定版を指定
-        vip: "172.18.0.100"  # Dockerネットワーク上のVIP
+        k8s_version: "1.29"
+        # 【修正2】VIPをlocalhostにする (CI上のテスト通信用)
+        # Keepalivedは 127.0.0.1 をバインドし、Verifyテストもlocalhost経由で通ります
+        vip: "127.0.0.1"
+        
         interface: "eth0"
         haproxy_port: "8443"
-        node_ips: "172.18.0.101,172.18.0.102,172.18.0.103"
-        # CI環境であることを知らせるフラグ
+        
+        # 【修正3】IPアドレスではなく「ホスト名」を指定する
+        # Docker DNSが自動解決してくれるため、これでHAProxyの設定も正しく生成されます
+        node_ips: "pi-node1,pi-node2,pi-node3"
+        
         is_ci_environment: true
 
 verifier:
@@ -94,9 +95,8 @@ scenario:
     - destroy
     - syntax
     - create
-    - prepare  # ★ここでMockを作成
+    - prepare
     - converge
-    # - idempotence # K8s構築スクリプトは冪等性が難しいため一旦外す
     - verify
     - cleanup
     - destroy
