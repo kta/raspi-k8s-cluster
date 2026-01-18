@@ -40,17 +40,28 @@ spec:
           general:
             level: INFO
 
-        # ポート設定
+        # ポート設定（非rootユーザーで実行するため8000/8443を使用）
         ports:
           web:
-            port: 80
+            port: 8000
             exposedPort: 80
           websecure:
-            port: 443
+            port: 8443
             exposedPort: 443
             # TLS を有効化
             tls:
               enabled: true
+        
+        # securityContext でCAP_NET_BIND_SERVICEを追加
+        securityContext:
+          capabilities:
+            add:
+              - NET_BIND_SERVICE
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
 
   destination:
     server: https://kubernetes.default.svc
