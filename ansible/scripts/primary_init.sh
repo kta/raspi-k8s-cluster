@@ -3,6 +3,7 @@ set -e
 
 VIP=$1
 HAPROXY_PORT=$2
+INTERFACE=$3
 TOKEN_FILE="/tmp/k8s_join_command.sh"
 
 echo ">>> Starting Primary Init..."
@@ -10,12 +11,17 @@ echo ">>> Starting Primary Init..."
 # 1. クラスター未作成なら init 実行
 if [ ! -f /etc/kubernetes/admin.conf ]; then
 	echo "Initializing Cluster..."
-	# 各ノードのIPアドレスを取得（VIPと同じサブネットのインターフェースを自動検出）
-	# 複数のインターフェースから、VIPに到達できるものを選択
-	NODE_IP=$(ip route get "${VIP}" | grep -oP 'src \K[\d.]+' | head -n 1)
+	# 指定されたインターフェースからIPアドレスを取得
+	# VIPがKeepalivedで設定済みの場合、route getはVIP自体を返すため、インターフェースから直接取得する
+	if [ -n "$INTERFACE" ]; then
+		NODE_IP=$(ip -4 addr show "$INTERFACE" | grep -oP 'inet \K[\d.]+' | grep -v "^${VIP}$" | head -n 1)
+	fi
 	if [ -z "$NODE_IP" ]; then
-		# フォールバック: デフォルトルートのソースIPを使用
-		NODE_IP=$(ip route get 8.8.8.8 | grep -oP 'src \K[\d.]+' | head -n 1)
+		# フォールバック: VIPへのルートのソースIPを使用（VIP以外）
+		NODE_IP=$(ip route get "${VIP}" | grep -oP 'src \K[\d.]+' | head -n 1)
+		if [ "$NODE_IP" = "$VIP" ]; then
+			NODE_IP=$(ip route get 8.8.8.8 | grep -oP 'src \K[\d.]+' | head -n 1)
+		fi
 	fi
 	echo ">>> Using NODE_IP: ${NODE_IP}"
 	kubeadm init --control-plane-endpoint "${VIP}:${HAPROXY_PORT}" \

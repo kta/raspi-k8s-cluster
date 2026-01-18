@@ -3,7 +3,11 @@
     "allow": [
       "Bash(make ansible-reset:*)",
       "Bash(ansible-playbook:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(vagrant status:*)",
+      "Bash(vagrant ssh:*)",
+      "Bash(vagrant destroy:*)",
+      "Bash(vagrant up:*)"
     ]
   }
 }

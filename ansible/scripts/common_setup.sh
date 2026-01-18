@@ -40,7 +40,21 @@ fi
 swapoff -a
 sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
-# zram-generatorの設定を無効化（Raspberry Pi OS Bookworm以降で使用されている）
+# Raspberry Pi OSのスワップ管理システムを無効化
+echo ">>> Disabling Raspberry Pi swap management..."
+# rpi-swapの設定ファイル自体を無効化（Raspberry Pi OS最新版）
+if [ -f /etc/rpi/swap.conf ]; then
+    mv /etc/rpi/swap.conf /etc/rpi/swap.conf.disabled 2>/dev/null || true
+fi
+# 念のため、設定ディレクトリ全体も無効化
+if [ -d /etc/rpi ]; then
+    # rpi ディレクトリ内の他のファイルも確認
+    if [ -f /etc/rpi/swap.conf.d/*  ]; then
+        mv /etc/rpi/swap.conf.d /etc/rpi/swap.conf.d.disabled 2>/dev/null || true
+    fi
+fi
+
+# zram-generatorの設定を無効化（古いバージョン用）
 echo ">>> Disabling zram-generator configuration..."
 if [ -f /usr/lib/systemd/zram-generator.conf ]; then
     mv /usr/lib/systemd/zram-generator.conf /usr/lib/systemd/zram-generator.conf.disabled 2>/dev/null || true
@@ -61,14 +75,22 @@ if [ -e /dev/zram0 ]; then
     echo ">>> Stopping and removing zram0 device..."
     # スワップを停止
     swapoff /dev/zram0 2>/dev/null || true
-    # systemdのzramサービスを停止
+    # systemdのzramサービスを停止してマスク（完全無効化）
     systemctl stop dev-zram0.swap 2>/dev/null || true
+    systemctl mask dev-zram0.swap 2>/dev/null || true
     systemctl stop 'systemd-zram-setup@zram0.service' 2>/dev/null || true
+    systemctl mask 'systemd-zram-setup@zram0.service' 2>/dev/null || true
     # zramデバイスをリセット
     echo 1 > /sys/block/zram0/reset 2>/dev/null || true
     # zramモジュールをアンロード
     rmmod zram 2>/dev/null || true
 fi
+
+# systemd-generatorの出力ファイルを削除（再起動時に再生成されないようにする）
+echo ">>> Removing systemd-generator output files..."
+rm -f /run/systemd/generator/dev-zram0.swap 2>/dev/null || true
+rm -f /run/systemd/generator/systemd-zram-setup@zram0.service 2>/dev/null || true
+rm -rf /run/systemd/generator/systemd-zram-setup@zram0.service.d 2>/dev/null || true
 
 # systemd-generatorを再実行してzram設定を削除
 systemctl daemon-reload
@@ -76,12 +98,16 @@ systemctl daemon-reload
 # 古いzramサービスも無効化（古いOS用）
 systemctl disable --now zramswap.service 2>/dev/null || true
 systemctl disable --now zram-config.service 2>/dev/null || true
+systemctl mask zramswap.service 2>/dev/null || true
+systemctl mask zram-config.service 2>/dev/null || true
 
 # 確認: スワップが完全に無効化されているか
-if grep -q zram /proc/swaps 2>/dev/null; then
-    echo "❌ ERROR: zram swap is still active!"
+if grep -q -E '(swap|zram)' /proc/swaps 2>/dev/null; then
+    echo "❌ ERROR: Swap is still active after disabling!"
     cat /proc/swaps
-    exit 1
+    echo ">>> This system requires a reboot to fully disable swap."
+    echo ">>> Exiting with code 100 to trigger reboot..."
+    exit 100
 fi
 echo "✅ Swap disabled successfully"
 

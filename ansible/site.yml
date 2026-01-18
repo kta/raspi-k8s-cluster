@@ -4,6 +4,34 @@
   become: true
 
   tasks:
+    # --- システムアップデート ---
+    - name: Wait for dpkg lock before update
+      shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
+      changed_when: false
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      register: apt_upgrade_result
+
+    - name: Check if reboot is required after upgrade
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Reboot if required after package upgrade
+      reboot:
+        reboot_timeout: 300
+        msg: "Rebooting after package upgrade"
+      when: reboot_required_file.stat.exists
+
     # --- 共通セットアップ ---
     - name: Copy common script
       copy:
@@ -58,12 +86,20 @@
         - scripts/cni_setup.sh
 
     - name: Run init script (Create Cluster & Generate Token File)
-      shell: /tmp/primary_init.sh {{ vip }} {{ haproxy_port }}
+      shell: /tmp/primary_init.sh {{ vip }} {{ haproxy_port }} {{ interface }}
       changed_when: true
 
     - name: Setup CNI on primary master
       shell: /tmp/cni_setup.sh
       changed_when: true
+
+    - name: Wait for control plane to be ready
+      shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes
+      register: control_plane_check
+      until: control_plane_check.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
 
     - name: Read Join Command from file
       slurp:
@@ -74,16 +110,27 @@
       set_fact:
         join_cmd_str: "{{ join_file_content['content'] | b64decode | trim }}"
 
-    - name: Share token with other nodes
-      add_host:
-        name: "TOKEN_HOLDER"
-        join_cmd: "{{ join_cmd_str }}"
+    - name: Save join command to local controller
+      delegate_to: localhost
+      copy:
+        content: "{{ join_cmd_str }}"
+        dest: "{{ playbook_dir }}/.join_command.tmp"
+        mode: '0600'
+      become: false
 
-# --- Secondary Masters: 参加 ---
+# --- Secondary Masters: 参加 (順次実行) ---
 - name: Join Secondary Masters
   hosts: secondary_masters
   become: true
+  serial: 1  # 1ノードずつ順番に実行
   tasks:
+    - name: Load join command from local controller
+      set_fact:
+        join_cmd: "{{ lookup('file', playbook_dir + '/.join_command.tmp') }}"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
     - name: Copy secondary init script
       copy:
         src: "{{ playbook_dir }}/scripts/secondary_init.sh"
@@ -91,5 +138,34 @@
         mode: '0755'
 
     - name: Run secondary init script
-      shell: /tmp/secondary_init.sh "{{ hostvars['TOKEN_HOLDER']['join_cmd'] }}"
+      shell: /tmp/secondary_init.sh "{{ hostvars[groups['secondary_masters'][0]]['join_cmd'] }}" "{{ vip }}" "{{ interface }}"
       changed_when: true
+      async: 600  # 10分のタイムアウト
+      poll: 10
+
+    - name: Wait for node to be ready
+      shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      register: node_ready
+      until: node_ready.stdout == "True"
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Wait for etcd pod to be running
+      shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get pod -l component=etcd,tier=control-plane -o jsonpath='{.items[?(@.spec.nodeName=="{{ inventory_hostname }}")].status.phase}'
+      register: etcd_pod
+      until: etcd_pod.stdout == "Running"
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Wait additional time for etcd to stabilize
+      pause:
+        seconds: 20
+      changed_when: false
+
+    - name: Wait for etcd to sync before next node
+      pause:
+        seconds: 60
+        prompt: "Waiting for etcd cluster to fully sync..."
+      when: inventory_hostname != groups['secondary_masters'][-1]
