@@ -11,7 +11,7 @@
 | **production** | 192.168.1.101-103 | 192.168.1.100 | 192.168.1.200-220 | 192.168.1.200 |
 | **vagrant** | 192.168.56.101-103 | 192.168.56.100 | 192.168.56.200-220 | 192.168.56.200 |
 
-## 🏗️ アーキテクチャ
+## 🏗️ アーキテクチャ（新構造 2026-01）
 
 ### 変数の流れ
 
@@ -41,382 +41,477 @@
                │
                ▼
 ┌─────────────────────────────────────┐
-│ 4. patch_argocd_apps.sh             │
-│    ArgoCD Application更新           │
-│    → 環境別overlayパスを指定        │
+│ 4. ArgoCD ApplicationSet            │
+│    bootstrap/root.yaml              │
+│    → bootstrap/values/*.yaml を検出 │
+│    → 環境別Applicationを生成        │
 └──────────────┬──────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────┐
 │ 5. Kustomize Overlays               │
-│    metallb/overlays/production/     │
-│    metallb/overlays/vagrant/        │
-│    → 環境別IPレンジをパッチ適用     │
+│    apps/overlays/{env}              │
+│    infra/*/overlays/{env}           │
+│    → 環境別パラメータをパッチ       │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│ 6. Kubernetes Resources             │
+│    環境別IP設定が自動適用           │
 └─────────────────────────────────────┘
 ```
 
-## 📋 設定方法
+### 重要な変更点（2026-01リファクタリング）
 
-### 1. Ansible インベントリ
+**旧構造の問題点:**
+- ❌ `patch_argocd_apps.sh` による手動パッチング
+- ❌ 環境ごとに重複したApplication定義
+- ❌ `01-`, `02-` などの番号プレフィックス
 
-**真実の源**として、すべてのIP設定をインベントリファイルで管理：
+**新構造の改善:**
+- ✅ ApplicationSetによる環境自動検出
+- ✅ Kustomize base/overlaysで重複排除
+- ✅ sync-waveアノテーションで依存管理
+- ✅ 完全自動化（手動パッチング不要）
 
-#### production環境 (`ansible/inventory/inventory.ini`)
+## 📝 設定ファイル
+
+### 1. Ansible Inventory（真実の源）
+
+#### Production: `ansible/inventory/inventory.ini`
+
 ```ini
+[all_masters]
+pi-node1 ansible_host=192.168.1.101 priority=101 state=MASTER
+pi-node2 ansible_host=192.168.1.102 priority=100 state=BACKUP
+pi-node3 ansible_host=192.168.1.103 priority=100 state=BACKUP
+
 [all:vars]
 ansible_user=pi
-k8s_version=1.35
 vip=192.168.1.100
 interface=eth0
+k8s_version=1.35
 haproxy_port=8443
 node_ips=192.168.1.101,192.168.1.102,192.168.1.103
-
-# 環境固有の設定
-environment=production
 metallb_ip_range=192.168.1.200-192.168.1.220
 ingress_ip=192.168.1.200
+environment=production
 ```
 
-#### vagrant環境 (`ansible/inventory/inventory_vagrant.ini`)
+#### Vagrant: `ansible/inventory/inventory_vagrant.ini`
+
 ```ini
+[all_masters]
+primary ansible_host=192.168.56.101 priority=101 state=MASTER
+secondary1 ansible_host=192.168.56.102 priority=100 state=BACKUP
+secondary2 ansible_host=192.168.56.103 priority=100 state=BACKUP
+
 [all:vars]
 ansible_user=vagrant
-k8s_version=1.35
 vip=192.168.56.100
 interface=eth1
+k8s_version=1.35
 haproxy_port=8443
 node_ips=192.168.56.101,192.168.56.102,192.168.56.103
-
-# 環境固有の設定
-environment=vagrant
 metallb_ip_range=192.168.56.200-192.168.56.220
 ingress_ip=192.168.56.200
+environment=vagrant
 ```
 
-### 2. 自動変数生成
+### 2. ApplicationSet環境パラメータ
 
-```bash
-# production環境
-make generate-tfvars ENV=production
-
-# vagrant環境
-make generate-tfvars ENV=vagrant
-```
-
-これにより `terraform/bootstrap/terraform.auto.tfvars` が自動生成されます：
-
-```hcl
-environment      = "production"
-vip              = "192.168.1.100"
-metallb_ip_range = "192.168.1.200-192.168.1.220"
-ingress_ip       = "192.168.1.200"
-
-# GitHub設定は terraform.tfvars から継承
-```
-
-### 3. ArgoCD Application更新
-
-```bash
-# production環境
-make patch-argocd-apps ENV=production
-
-# vagrant環境
-make patch-argocd-apps ENV=vagrant
-```
-
-これにより `k8s/infra/metallb/config.yaml` のパスが更新されます：
+#### Production: `k8s/bootstrap/values/production.yaml`
 
 ```yaml
-# production の場合
-spec:
-  source:
-    path: k8s/infra/metallb/overlays/production
+environment: production
+repoURL: https://github.com/kta/raspi-k8s-cluster.git
+targetRevision: main
 
-# vagrant の場合
-spec:
-  source:
-    path: k8s/infra/metallb/overlays/vagrant
+metallb:
+  ipRange: 192.168.1.200-192.168.1.220
+  
+ingress:
+  ip: 192.168.1.200
+  domain: raspi.local
+
+argocd:
+  hostname: argocd.raspi.local
+
+certManager:
+  email: admin@raspi.local
+  acmeServer: https://acme-v02.api.letsencrypt.org/directory
 ```
 
-## 📦 Kustomize構造
+#### Vagrant: `k8s/bootstrap/values/vagrant.yaml`
 
-MetalLBの設定は以下の構造で管理：
+```yaml
+environment: vagrant
+repoURL: https://github.com/kta/raspi-k8s-cluster.git
+targetRevision: main
 
+metallb:
+  ipRange: 192.168.56.200-192.168.56.220
+  
+ingress:
+  ip: 192.168.56.200
+  domain: raspi.local
+
+argocd:
+  hostname: argocd.raspi.local
+
+certManager:
+  email: admin@raspi.local
+  acmeServer: https://acme-staging-v02.api.letsencrypt.org/directory  # Staging
 ```
-k8s/infra/metallb/
-├── base/
-│   ├── kustomization.yaml
-│   ├── metallb.yaml           # MetalLB本体
-│   └── ip-pool.yaml           # IPAddressPool (プレースホルダー)
-├── overlays/
-│   ├── production/
-│   │   └── kustomization.yaml # 192.168.1.200-220 にパッチ
-│   └── vagrant/
-│       └── kustomization.yaml # 192.168.56.200-220 にパッチ
-├── metallb.yaml               # ArgoCD Application (本体)
-└── config.yaml                # ArgoCD Application (設定)
-```
 
-### overlay の例
+### 3. Kustomize Overlays
 
-**production** (`overlays/production/kustomization.yaml`):
+#### MetalLB Production: `k8s/infra/metallb/overlays/production/kustomization.yaml`
+
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 namespace: metallb-system
 
-bases:
+resources:
   - ../../base
 
 patches:
   - target:
       kind: IPAddressPool
-      name: default-pool
+      name: default
     patch: |-
       - op: replace
         path: /spec/addresses/0
-        value: 192.168.1.200-192.168.1.220
+        value: "192.168.1.200-192.168.1.220"
 ```
 
-**vagrant** (`overlays/vagrant/kustomization.yaml`):
+#### MetalLB Vagrant: `k8s/infra/metallb/overlays/vagrant/kustomization.yaml`
+
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 namespace: metallb-system
 
-bases:
+resources:
   - ../../base
 
 patches:
   - target:
       kind: IPAddressPool
-      name: default-pool
+      name: default
     patch: |-
       - op: replace
         path: /spec/addresses/0
-        value: 192.168.56.200-192.168.56.220
+        value: "192.168.56.200-192.168.56.220"
 ```
 
-## 🚀 デプロイワークフロー
+## 🔄 IP変更手順
 
-### 実機環境
-
-```bash
-# 一括実行（推奨）
-make setup-all ENV=production
-
-# または個別実行
-make generate-tfvars ENV=production
-make patch-argocd-apps ENV=production
-make ansible-setup
-make fetch-kubeconfig
-make terraform-apply ENV=production
-make argocd-bootstrap
-```
-
-### Vagrant環境
+### Production環境のIP変更
 
 ```bash
-# 一括実行（推奨）
-make setup-all-vagrant
-
-# または個別実行
-make generate-tfvars ENV=vagrant
-make patch-argocd-apps ENV=vagrant
-make vagrant-up
-make ansible-setup-vagrant
-make fetch-kubeconfig-vagrant
-make terraform-apply ENV=vagrant
-make argocd-bootstrap
-```
-
-## 🔍 検証
-
-### 環境設定の確認
-
-```bash
-# Makefile環境設定
-make env-info ENV=production
-
-# Terraform変数
-cat terraform/bootstrap/terraform.auto.tfvars
-
-# Kubernetes ConfigMap
-kubectl get configmap -n argocd environment-config -o yaml
-```
-
-### MetalLB設定の確認
-
-```bash
-# IPAddressPool
-kubectl get ipaddresspool -n metallb-system default-pool -o yaml
-
-# LoadBalancer Service
-kubectl get svc -A --field-selector spec.type=LoadBalancer
-
-# 期待される出力（production）:
-# traefik   traefik   LoadBalancer   10.96.0.1   192.168.1.200   80:30080/TCP,443:30443/TCP
-```
-
-### ArgoCD Application確認
-
-```bash
-# MetalLB config の overlay パス確認
-kubectl get application -n argocd metallb-config -o jsonpath='{.spec.source.path}'
-
-# 期待される出力:
-# production: k8s/infra/metallb/overlays/production
-# vagrant: k8s/infra/metallb/overlays/vagrant
-```
-
-## 🛠️ トラブルシューティング
-
-### 問題: terraform.auto.tfvars が環境と不一致
-
-**症状**: Vagrant環境なのに production の設定が使われている
-
-**解決策**:
-```bash
-# 検証スクリプトで確認
-./scripts/verify_tfvars_environment.sh vagrant
-
-# 自動修正
-make generate-tfvars ENV=vagrant
-
-# 手動削除して再生成
-rm terraform/bootstrap/terraform.auto.tfvars
-make generate-tfvars ENV=vagrant
-```
-
-### 問題: MetalLBが間違ったIPレンジを使用
-
-**症状**: LoadBalancer ServiceにIPが割り当てられない
-
-**解決策**:
-```bash
-# ArgoCD Application を手動同期
-argocd app sync metallb-config
-
-# IPAddressPool を確認
-kubectl get ipaddresspool -n metallb-system default-pool -o yaml
-
-# 必要に応じて overlay を修正
-vim k8s/infra/metallb/overlays/production/kustomization.yaml
-```
-
-### 問題: 環境切り替え後に古い設定が残る
-
-**症状**: 環境を切り替えたが、ArgoCDが古いパスを参照
-
-**解決策**:
-```bash
-# ArgoCD Application を再適用
-make patch-argocd-apps ENV=production
-kubectl apply -f k8s/bootstrap/root-app.yaml
-
-# すべてのアプリを同期
-argocd app sync --async --prune --self-heal -l app.kubernetes.io/instance=root
-```
-
-## 📝 IP設定変更手順
-
-IPアドレスを変更する場合の手順：
-
-```bash
-# 1. インベントリファイルを編集
+# 1. Ansibleインベントリを編集
 vim ansible/inventory/inventory.ini
-# vip, metallb_ip_range, ingress_ip を変更
+# metallb_ip_range, ingress_ip, vipなどを変更
 
-# 2. Terraform変数を再生成
+# 2. ApplicationSet環境パラメータを編集（オプション）
+vim k8s/bootstrap/values/production.yaml
+# metallb.ipRange, ingress.ipを変更
+
+# 3. Kustomize overlayを編集
+vim k8s/infra/metallb/overlays/production/kustomization.yaml
+# IPアドレスレンジを変更
+
+# 4. Terraform変数を再生成
 make generate-tfvars ENV=production
 
-# 3. ArgoCD Application を更新
-make patch-argocd-apps ENV=production
+# 5. 変更をコミット
+git add .
+git commit -m "Update production IP ranges"
+git push
 
-# 4. Terraform を再実行
-cd terraform/bootstrap && terraform apply
-
-# 5. ArgoCD を同期
-kubectl apply -f k8s/bootstrap/root-app.yaml
-argocd app sync metallb-config
+# 6. ArgoCDが自動的に同期（auto-syncが有効な場合）
+# 手動同期の場合:
+kubectl apply -f k8s/bootstrap/root.yaml
+argocd app sync -l app.kubernetes.io/instance=infra-production
 ```
 
-## 🆕 新しい環境の追加
+### Vagrant環境のIP変更
 
-staging 環境などを追加する場合：
+```bash
+# 1. Ansibleインベントリを編集
+vim ansible/inventory/inventory_vagrant.ini
 
-### 1. インベントリファイル作成
+# 2. ApplicationSet環境パラメータを編集
+vim k8s/bootstrap/values/vagrant.yaml
+
+# 3. Kustomize overlayを編集
+vim k8s/infra/metallb/overlays/vagrant/kustomization.yaml
+
+# 4. Terraform変数を再生成
+make generate-tfvars ENV=vagrant
+
+# 5. 変更をコミット & push
+git add . && git commit -m "Update vagrant IP ranges" && git push
+
+# 6. ArgoCD同期
+kubectl apply -f k8s/bootstrap/root.yaml
+argocd app sync -l app.kubernetes.io/instance=infra-vagrant
+```
+
+## 🚀 新規環境の追加
+
+### 1. Ansibleインベントリ作成
 
 ```bash
 cp ansible/inventory/inventory.ini ansible/inventory/inventory_staging.ini
 vim ansible/inventory/inventory_staging.ini
+# 新しいIPレンジに変更
 # environment=staging
-# IPアドレスを変更
 ```
 
-### 2. Kustomize overlay作成
+### 2. ApplicationSet環境パラメータ作成
 
 ```bash
+cat > k8s/bootstrap/values/staging.yaml << 'YAML'
+environment: staging
+repoURL: https://github.com/kta/raspi-k8s-cluster.git
+targetRevision: main
+
+metallb:
+  ipRange: 192.168.10.200-192.168.10.220
+  
+ingress:
+  ip: 192.168.10.200
+  domain: raspi.local
+
+argocd:
+  hostname: argocd.raspi.local
+
+certManager:
+  email: admin@raspi.local
+  acmeServer: https://acme-staging-v02.api.letsencrypt.org/directory
+YAML
+```
+
+### 3. Kustomize Overlays作成
+
+```bash
+# MetalLB
 mkdir -p k8s/infra/metallb/overlays/staging
-cp k8s/infra/metallb/overlays/production/kustomization.yaml \
-   k8s/infra/metallb/overlays/staging/
-vim k8s/infra/metallb/overlays/staging/kustomization.yaml
-# IPレンジを変更
+cat > k8s/infra/metallb/overlays/staging/kustomization.yaml << 'YAML'
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: metallb-system
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: IPAddressPool
+      name: default
+    patch: |-
+      - op: replace
+        path: /spec/addresses/0
+        value: "192.168.10.200-192.168.10.220"
+YAML
+
+# Cert-Manager
+mkdir -p k8s/infra/cert-manager/overlays/staging
+cat > k8s/infra/cert-manager/overlays/staging/kustomization.yaml << 'YAML'
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cert-manager
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: ClusterIssuer
+      name: letsencrypt
+    patch: |-
+      - op: replace
+        path: /spec/acme/server
+        value: "https://acme-staging-v02.api.letsencrypt.org/directory"
+YAML
+
+# ArgoCD Ingress
+mkdir -p k8s/infra/argocd/overlays/staging
+cp k8s/infra/argocd/overlays/production/kustomization.yaml \
+   k8s/infra/argocd/overlays/staging/kustomization.yaml
+
+# Atlantis Ingress
+mkdir -p k8s/infra/atlantis/overlays/staging
+cp k8s/infra/atlantis/overlays/production/kustomization.yaml \
+   k8s/infra/atlantis/overlays/staging/kustomization.yaml
 ```
 
-### 3. スクリプト更新
+### 4. Application Overlays作成
 
-- `scripts/generate_tfvars.sh`: 環境検出に staging を追加
-- `scripts/patch_argocd_apps.sh`: staging を許可
-- `terraform/bootstrap/variables.tf`: validation に staging を追加
+```bash
+mkdir -p k8s/apps/overlays/staging
+cat > k8s/apps/overlays/staging/kustomization.yaml << 'YAML'
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
 
-### 4. Makefile更新
+namespace: argocd
 
-```makefile
-.PHONY: setup-all-staging
-setup-all-staging: ## 全フェーズを実行（staging環境）
-	@echo "🚀 staging環境のセットアップを開始..."
-	$(MAKE) env-info ENV=staging
-	$(MAKE) generate-tfvars ENV=staging
-	$(MAKE) patch-argocd-apps ENV=staging
-	# ...
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Application
+      name: metallb-config
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/metallb/overlays/staging
+
+  - target:
+      kind: Application
+      name: cert-manager-resources
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/cert-manager/overlays/staging
+
+  - target:
+      kind: Application
+      name: traefik
+    patch: |-
+      - op: replace
+        path: /spec/source/helm/valuesObject/service/annotations/metallb.universe.tf~1loadBalancerIPs
+        value: "192.168.10.200"
+
+  - target:
+      kind: Application
+      name: argocd-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/argocd/overlays/staging
+
+  - target:
+      kind: Application
+      name: atlantis-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/atlantis/overlays/staging
+YAML
 ```
+
+### 5. デプロイ
+
+```bash
+# Terraform変数生成
+make generate-tfvars ENV=staging
+
+# コミット & push
+git add .
+git commit -m "Add staging environment"
+git push
+
+# ApplicationSetが自動的に新環境を検出してデプロイ
+kubectl get appset -n argocd infra-root -o yaml
+kubectl get app -n argocd | grep infra-staging
+```
+
+## 🔍 環境別デプロイ確認
+
+```bash
+# ApplicationSetの状態確認
+kubectl get appset -n argocd
+
+# 生成されたApplications確認
+kubectl get app -n argocd | grep infra-
+
+# 特定環境のApplication詳細
+kubectl get app -n argocd infra-production -o yaml
+kubectl get app -n argocd infra-vagrant -o yaml
+
+# MetalLB IP Pool確認
+kubectl get ipaddresspool -n metallb-system -o yaml
+
+# Traefik LoadBalancer IP確認
+kubectl get svc -n traefik traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
+
+## 📊 比較表
+
+| 項目 | 旧構造 | 新構造（2026-01） |
+|------|--------|------------------|
+| **エントリーポイント** | `k8s/bootstrap/{env}.yaml` | `k8s/bootstrap/root.yaml` (ApplicationSet) |
+| **環境パラメータ** | Application内にハードコード | `k8s/bootstrap/values/*.yaml` |
+| **Application定義** | `k8s/envs/{env}/01-*.yaml` | `k8s/apps/base/*.yaml` + overlays |
+| **環境差分** | ファイル全体を複製 | Kustomize patchesのみ |
+| **依存順序** | ファイル名プレフィックス | sync-waveアノテーション |
+| **手動パッチング** | `patch_argocd_apps.sh` 必要 | 不要（完全自動） |
+| **新環境追加** | 全ファイルコピー | values/*.yaml のみ追加 |
 
 ## 🎯 ベストプラクティス
 
-### ✅ すべきこと
+1. **単一真実の源**: すべてのIPはAnsibleインベントリで管理
+2. **自動同期**: ApplicationSetのauto-sync機能を有効化
+3. **環境パリティ**: production/vagrant/stagingで同じ構造を維持
+4. **変更履歴**: Git commitメッセージにIP変更理由を記載
+5. **検証**: 変更後は必ず `kubectl get ipaddresspool` で確認
 
-1. **インベントリファイルを真実の源とする**
-   - すべてのIP設定はインベントリで管理
-   - 変更時は必ず `make generate-tfvars` を実行
+## 🆘 トラブルシューティング
 
-2. **環境を明示的に指定**
-   ```bash
-   make terraform-apply ENV=production
-   ```
+### ApplicationSetが環境を検出しない
 
-3. **変更前に検証**
-   ```bash
-   make env-info ENV=production
-   make validate-setup ENV=production
-   ```
+```bash
+# ApplicationSet設定確認
+kubectl get appset -n argocd infra-root -o yaml
 
-### ❌ すべきでないこと
+# generator設定を確認
+# files pathが "k8s/bootstrap/values/*.yaml" になっているか確認
 
-1. **マニフェストに直接IPを書かない**
-   - Kustomize overlay を使用
+# values/*.yaml ファイルが正しいか確認
+ls -la k8s/bootstrap/values/
+cat k8s/bootstrap/values/production.yaml
+```
 
-2. **terraform.auto.tfvars を手動編集しない**
-   - 自動生成ファイルなので上書きされる
-   - インベントリファイルを編集する
+### IP変更が反映されない
 
-3. **環境を混在させない**
-   - 1つのクラスタ = 1つの環境
+```bash
+# 1. Kustomize overlayを確認
+kubectl kustomize k8s/infra/metallb/overlays/production
+
+# 2. Application sync状態確認
+kubectl get app -n argocd -o json | jq -r '.items[] | "\(.metadata.name): \(.status.sync.status)"'
+
+# 3. 手動sync
+argocd app sync metallb-config
+
+# 4. IPAddressPool確認
+kubectl get ipaddresspool -n metallb-system -o yaml
+```
+
+### 環境別でデプロイされない
+
+```bash
+# Applicationのpathがcorrectか確認
+kubectl get app -n argocd infra-production -o yaml | grep path
+
+# 期待値: k8s/apps/overlays/production
+# 実際の値が違う場合、ApplicationSet templateを確認
+```
 
 ## 📚 関連ドキュメント
 
-- [クイックスタート](./quickstart.md) - 基本的なセットアップ手順
-- [サービスアクセス](./service-access.md) - ArgoCD/Atlantisへのアクセス方法
-- [トラブルシューティング](./troubleshooting.md) - よくある問題と解決策
+- [クイックスタート](./quickstart.md) - セットアップ手順
+- [サービスアクセス](./service-access.md) - ArgoCD/Atlantis アクセス
+- [トラブルシューティング](./troubleshooting.md) - 問題解決
+- [k8s/README.md](../../k8s/README.md) - k8s構造詳細
+- [k8s/MIGRATION.md](../../k8s/MIGRATION.md) - 旧構造からの移行

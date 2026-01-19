@@ -1,0 +1,58 @@
+# =============================================================================
+# Production Environment Overlay
+# =============================================================================
+# This overlay patches the base applications with production-specific values.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - ../../base
+
+patches:
+  # MetalLB Config - production overlay path
+  - target:
+      kind: Application
+      name: metallb-config
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/metallb/overlays/production
+
+  # Cert-Manager Resources - production overlay path
+  - target:
+      kind: Application
+      name: cert-manager-resources
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/cert-manager/overlays/production
+
+  # Traefik - production LoadBalancer IP
+  - target:
+      kind: Application
+      name: traefik
+    patch: |-
+      - op: replace
+        path: /spec/source/helm/valuesObject/service/annotations/metallb.universe.tf~1loadBalancerIPs
+        value: "192.168.1.200"
+
+  # ArgoCD Ingress - production overlay path
+  - target:
+      kind: Application
+      name: argocd-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/argocd/overlays/production
+
+  # Atlantis Ingress - production overlay path
+  - target:
+      kind: Application
+      name: atlantis-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infra/atlantis/overlays/production

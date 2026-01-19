@@ -90,6 +90,15 @@ docs/
 
 ## 🔄 ドキュメント更新履歴
 
+### 2026-01-19
+- **k8s構造の全面リファクタリング反映**
+  - ApplicationSet導入による環境自動検出
+  - base/overlaysパターンでDRY原則徹底
+  - sync-waveアノテーションで依存管理
+  - `patch_argocd_apps.sh` 廃止（完全自動化）
+- IP管理ガイドを新構造に合わせて全面改訂
+- Makefileから `patch-argocd-apps` ターゲット削除
+
 ### 2026-01-18
 - ドキュメント構造を全面刷新
 - 重複ドキュメントを統合

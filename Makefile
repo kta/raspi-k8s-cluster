@@ -193,8 +193,20 @@ terraform-apply-vagrant: ## Vagrant環境でTerraformを適用
 # ==========================================
 
 .PHONY: argocd-bootstrap
-argocd-bootstrap: ## 【Phase 3】ArgoCD Root App適用（GitOps開始）
-	@echo "🎯 ArgoCD Root Appを適用中 (環境: $(ENVIRONMENT))..."
+argocd-bootstrap: ## 【Phase 3】ArgoCD ApplicationSet適用（GitOps開始）
+	@echo "🎯 ArgoCD ApplicationSetを適用中..."
+	@echo "  📦 新構造: ApplicationSetが自動的に全環境を検出します"
+	kubectl apply -f k8s/bootstrap/root.yaml
+	@echo "✅ GitOps管理を開始しました"
+	@echo ""
+	@echo "🔍 確認コマンド:"
+	@echo "  kubectl get appset -n argocd"
+	@echo "  kubectl get app -n argocd | grep infra-"
+
+.PHONY: argocd-bootstrap-legacy
+argocd-bootstrap-legacy: ## [非推奨] 旧方式のbootstrap（環境別指定）
+	@echo "⚠️  警告: この方法は非推奨です。代わりに 'make argocd-bootstrap' を使用してください"
+	@echo "🎯 旧方式でArgoCD Appを適用中 (環境: $(ENVIRONMENT))..."
 	kubectl apply -f k8s/bootstrap/$(ENVIRONMENT).yaml
 	@echo "✅ GitOps管理を開始しました"
 
@@ -256,7 +268,6 @@ setup-all: ## 【本番環境】全フェーズを一括実行（Phase 1-3）
 	@echo "🚀 全フェーズのセットアップを開始 (環境: $(ENVIRONMENT))..."
 	$(MAKE) env-info ENV=$(ENVIRONMENT)
 	$(MAKE) generate-tfvars ENV=$(ENVIRONMENT)
-	$(MAKE) patch-argocd-apps ENV=$(ENVIRONMENT)
 	$(MAKE) validate-setup ENV=$(ENVIRONMENT)
 	$(MAKE) ssh-copy-keys
 	$(MAKE) ansible-setup ENV=$(ENVIRONMENT)
@@ -264,14 +275,17 @@ setup-all: ## 【本番環境】全フェーズを一括実行（Phase 1-3）
 	$(MAKE) terraform-apply ENV=$(ENVIRONMENT)
 	$(MAKE) argocd-bootstrap
 	@echo "✅ すべてのセットアップが完了しました！"
-	@echo "次のコマンドでクラスターの状態を確認してください: make status"
+	@echo ""
+	@echo "📊 次のステップ:"
+	@echo "  make status              # クラスタ状態確認"
+	@echo "  make argocd-status       # ArgoCD App確認"
+	@echo "  make port-forward-argocd # ArgoCD UIアクセス"
 
 .PHONY: setup-all-vagrant
 setup-all-vagrant: ## 【Vagrant環境】全フェーズを一括実行（Phase 1-3）
 	@echo "🚀 Vagrant環境の全フェーズセットアップを開始..."
 	$(MAKE) env-info ENV=vagrant
 	$(MAKE) generate-tfvars ENV=vagrant
-	$(MAKE) patch-argocd-apps ENV=vagrant
 	$(MAKE) validate-setup ENV=vagrant
 	$(MAKE) vagrant-up
 	$(MAKE) ansible-setup-vagrant
@@ -279,4 +293,8 @@ setup-all-vagrant: ## 【Vagrant環境】全フェーズを一括実行（Phase 
 	$(MAKE) terraform-apply-auto-approve ENV=vagrant
 	$(MAKE) argocd-bootstrap
 	@echo "✅ Vagrant環境のセットアップが完了しました！"
-	@echo "次のコマンドでクラスターの状態を確認してください: make status"
+	@echo ""
+	@echo "📊 次のステップ:"
+	@echo "  make status              # クラスタ状態確認"
+	@echo "  make argocd-status       # ArgoCD App確認"
+	@echo "  make port-forward-argocd # ArgoCD UIアクセス"

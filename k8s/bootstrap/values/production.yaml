@@ -1,0 +1,32 @@
+# =============================================================================
+# Production Environment Parameters
+# =============================================================================
+# This file defines the production environment.
+# The ApplicationSet generator discovers this file and creates Applications.
+# =============================================================================
+
+environment: production
+repoURL: https://github.com/kta/raspi-k8s-cluster.git
+targetRevision: main
+
+# Network Configuration
+metallb:
+  ipRange: 192.168.1.200-192.168.1.220
+  
+ingress:
+  ip: 192.168.1.200
+  domain: raspi.local
+
+# ArgoCD Configuration
+argocd:
+  hostname: argocd.raspi.local
+
+# Atlantis Configuration
+atlantis:
+  hostname: atlantis.raspi.local
+  orgAllowlist: github.com/kta/*
+
+# Cert-Manager Configuration
+certManager:
+  email: admin@raspi.local
+  acmeServer: https://acme-v02.api.letsencrypt.org/directory

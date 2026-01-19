@@ -55,13 +55,31 @@ raspi-k8s-cluster/
 │
 └── k8s/                         # 【Phase 3: GitOps管理リソース】
     ├── bootstrap/
-    │   └── root-app.yaml        # ArgoCD App of Apps
-    ├── infra/
-    │   ├── cni/                 # ★ Flannel or Calico (CNIは必須)
-    │   ├── metallb/             # LoadBalancer
-    │   └── atlantis/            # Terraform Automation
-    └── apps/
-        └── web-app/             # アプリケーション
+    │   ├── root.yaml            # ⭐ ApplicationSet（全環境対応）
+    │   ├── production.yaml      # Legacy: 環境別bootstrap
+    │   ├── vagrant.yaml         # Legacy: 環境別bootstrap
+    │   └── values/              # 環境パラメータ
+    │       ├── production.yaml  # Production設定
+    │       └── vagrant.yaml     # Vagrant設定
+    ├── apps/                    # ArgoCD Application定義
+    │   ├── base/                # 共通Application定義
+    │   │   ├── kustomization.yaml
+    │   │   ├── sealed-secrets.yaml
+    │   │   ├── cni.yaml
+    │   │   ├── metallb.yaml
+    │   │   ├── cert-manager.yaml
+    │   │   ├── traefik.yaml
+    │   │   └── atlantis.yaml
+    │   └── overlays/            # 環境別差分
+    │       ├── production/
+    │       └── vagrant/
+    └── infra/                   # Kubernetesマニフェスト
+        ├── cni/                 # Pod networking (Flannel)
+        ├── metallb/             # LoadBalancer
+        ├── cert-manager/        # TLS automation
+        ├── traefik/             # Ingress controller
+        ├── argocd/              # ArgoCD UI ingress
+        └── atlantis/            # Terraform automation
 ```
 
 ## 🚀 クイックスタート
@@ -193,6 +211,17 @@ make setup-local-dns        # http://argocd.local
 - 🌐 [IP管理ガイド](./docs/guides/ip-management.md) - 環境別IP設定
 - 🔗 [サービスアクセス](./docs/guides/service-access.md) - ArgoCD/Atlantis アクセス方法
 - 🛠️ [トラブルシューティング](./docs/guides/troubleshooting.md) - 問題解決集
+- ☸️ [k8s構造ガイド](./k8s/README.md) - GitOps構造の詳細説明
+
+## 🔄 最近の更新（2026-01）
+
+### k8s構造の全面リファクタリング
+- ✅ **ApplicationSet導入**: 環境自動検出、単一エントリーポイント
+- ✅ **base/overlays分離**: DRY原則徹底、環境差分を最小化
+- ✅ **sync-wave管理**: 番号プレフィックス廃止、依存関係を明示
+- ✅ **完全自動化**: 手動パッチング不要、Git pushのみで完結
+
+詳細は [k8s/MIGRATION.md](./k8s/MIGRATION.md) を参照。
 
 ## 📄 ライセンス
 

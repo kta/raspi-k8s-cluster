@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: atlantis
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Ingress
+      name: atlantis
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: "atlantis.raspi.local"
+      - op: replace
+        path: /spec/rules/0/host
+        value: "atlantis.raspi.local"

@@ -1,19 +1,24 @@
+# =============================================================================
+# MetalLB IP Address Pool
+# =============================================================================
+# Defines the range of IP addresses that MetalLB can assign to LoadBalancer services.
+# The actual IP range is set by environment-specific overlays.
+# =============================================================================
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
-  name: default-pool
+  name: default
   namespace: metallb-system
 spec:
   addresses:
-    # このファイルはベースです。実際のIPレンジはoverlaysで指定します
-    - METALLB_IP_RANGE_PLACEHOLDER
+    - 192.168.1.200-192.168.1.220  # Will be replaced by overlay
 
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
-  name: default-l2-advertisement
+  name: default
   namespace: metallb-system
 spec:
   ipAddressPools:
-    - default-pool
+    - default

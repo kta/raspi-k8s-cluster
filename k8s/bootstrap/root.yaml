@@ -1,0 +1,61 @@
+# =============================================================================
+# Root ApplicationSet - Environment Parameterized
+# =============================================================================
+# This is the single entry point for all environments.
+# It uses ApplicationSet to parameterize production/vagrant differences.
+#
+# Usage:
+#   kubectl apply -f k8s/bootstrap/root.yaml
+#
+# The ApplicationSet will:
+#   1. Discover environments from Git (production, vagrant)
+#   2. Generate an Application for each environment
+#   3. Each Application deploys all infrastructure apps via kustomization
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: infra-root
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - git:
+        repoURL: https://github.com/kta/raspi-k8s-cluster.git
+        revision: main
+        files:
+          - path: "k8s/bootstrap/values/*.yaml"
+
+  template:
+    metadata:
+      name: 'infra-{{.environment}}'
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    
+    spec:
+      project: default
+
+      source:
+        repoURL: https://github.com/kta/raspi-k8s-cluster.git
+        targetRevision: main
+        path: k8s/apps/overlays/{{.environment}}
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

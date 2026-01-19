@@ -3,14 +3,14 @@ kind: Kustomization
 
 namespace: metallb-system
 
-bases:
+resources:
   - ../../base
 
 patches:
   - target:
       kind: IPAddressPool
-      name: default-pool
+      name: default
     patch: |-
       - op: replace
         path: /spec/addresses/0
-        value: 192.168.1.200-192.168.1.220
+        value: "192.168.1.200-192.168.1.220"

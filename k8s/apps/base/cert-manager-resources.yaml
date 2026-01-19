@@ -1,0 +1,29 @@
+# =============================================================================
+# Cert-Manager Resources Application
+# =============================================================================
+# ClusterIssuers and other cert-manager CRDs.
+# Environment-specific overlay will provide ACME server URL.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-resources
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/kta/raspi-k8s-cluster.git
+    targetRevision: main
+    path: k8s/infra/cert-manager/overlays/production  # Will be patched by overlay
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
