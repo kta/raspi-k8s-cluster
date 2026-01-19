@@ -37,10 +37,14 @@ tags
 .terraform.lock.hcl
 terraform.tfvars
 *.tfvars
+!terraform.auto.tfvars
+!*.tfvars.example
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+crash.log
+crash.*.log
 
 ### Kubernetes
 kubeconfig

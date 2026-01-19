@@ -166,7 +166,7 @@ fi
 # =============================================================================
 print_header "Step 3: ArgoCDのインストール"
 
-print_info "使用するvalues.yaml: ${SCRIPT_DIR}/values.yaml"
+print_info "使用するvalues.yaml: ${SCRIPT_DIR}/../../terraform/bootstrap/argocd-values.yaml"
 echo ""
 echo "主な設定:"
 echo "  - サービスタイプ: NodePort (30443)"
@@ -174,7 +174,7 @@ echo "  - HTTPS: 無効 (--insecure)"
 echo "  - リソース制限: Raspberry Pi向けに最適化"
 echo ""
 
-INSTALL_CMD="helm install argocd argo/argo-cd --namespace argocd --values ${SCRIPT_DIR}/values.yaml --wait"
+INSTALL_CMD="helm install argocd argo/argo-cd --namespace argocd --values ${SCRIPT_DIR}/../../terraform/bootstrap/argocd-values.yaml --wait"
 
 if confirm "$INSTALL_CMD"; then
     echo ""
@@ -183,7 +183,7 @@ if confirm "$INSTALL_CMD"; then
 
     if helm install argocd argo/argo-cd \
         --namespace argocd \
-        --values "${SCRIPT_DIR}/values.yaml" \
+        --values "${SCRIPT_DIR}/../../terraform/bootstrap/argocd-values.yaml" \
         --wait \
         --timeout 10m; then
         print_success "ArgoCDをインストールしました"

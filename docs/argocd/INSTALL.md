@@ -144,7 +144,7 @@ argo/argo-cd    X.X.X           vX.X.X        A Helm chart for Argo CD...
 # 必要に応じて編集してください
 
 # 現在のディレクトリから確認
-cat docs/argocd/values.yaml
+cat terraform/bootstrap/argocd-values.yaml
 ```
 
 **主要な設定項目:**
@@ -163,7 +163,7 @@ cat docs/argocd/values.yaml
 # このリポジトリのルートディレクトリで実行
 helm install argocd argo/argo-cd \
   --namespace argocd \
-  --values docs/argocd/values.yaml \
+  --values terraform/bootstrap/argocd-values.yaml \
   --wait
 ```
 
@@ -533,7 +533,7 @@ CRDを削除すると、すべてのArgoCD Application リソースが削除さ�
 kubectl create namespace argocd
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
-helm install argocd argo/argo-cd -n argocd -f docs/argocd/values.yaml
+helm install argocd argo/argo-cd -n argocd -f terraform/bootstrap/argocd-values.yaml
 
 # ===== 状態確認 =====
 kubectl get pods -n argocd                    # Pod一覧

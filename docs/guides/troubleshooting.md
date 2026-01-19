@@ -128,7 +128,7 @@ ARM64環境でのメモリ不足またはliveness probeのタイムアウト
 
 ### 解決方法
 
-`docs/argocd/values.yaml` でリソース制限を調整：
+`terraform/bootstrap/argocd-values.yaml` でリソース制限を調整：
 
 ```yaml
 repoServer:

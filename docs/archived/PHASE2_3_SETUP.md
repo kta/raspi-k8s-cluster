@@ -289,7 +289,7 @@ resource "helm_release" "argocd" {
 
   # Raspberry Pi 向けに最適化された values.yaml を使用
   values = [
-    file("${path.module}/../../docs/argocd/values.yaml")
+    file("${path.module}/argocd-values.yaml")
   ]
 
   # インストール完了まで待機

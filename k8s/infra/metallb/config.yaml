@@ -15,7 +15,7 @@ spec:
     # 環境に応じて overlay を指定する
     # production: k8s/infra/metallb/overlays/production
     # vagrant: k8s/infra/metallb/overlays/vagrant
-    path: k8s/infra/metallb/overlays/production
+    path: k8s/infra/metallb/overlays/vagrant
 
   destination:
     server: https://kubernetes.default.svc

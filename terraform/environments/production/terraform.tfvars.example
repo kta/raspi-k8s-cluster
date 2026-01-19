@@ -1,0 +1,19 @@
+# GitHub Configuration (REQUIRED)
+github_token    = "YOUR_GITHUB_TOKEN_HERE"
+github_username = "YOUR_GITHUB_USERNAME"
+github_repo_url = "https://github.com/YOUR_USERNAME/YOUR_REPO.git"
+
+# ArgoCD Configuration (Optional)
+# argocd_namespace     = "argocd"
+# argocd_chart_version = "9.3.3"
+# enable_ha            = false
+
+# Sealed Secrets Configuration (Optional)
+# sealed_secrets_namespace      = "kube-system"
+# sealed_secrets_chart_version  = null  # Use latest
+
+# Atlantis Configuration (Optional)
+# atlantis_namespace = "atlantis"
+
+# Helm Configuration (Optional)
+# helm_timeout = 900

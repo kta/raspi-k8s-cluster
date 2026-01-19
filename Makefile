@@ -39,7 +39,7 @@ env-info: ## 現在の環境設定を表示
 .PHONY: generate-tfvars
 generate-tfvars: ## Ansible インベントリから terraform.auto.tfvars を生成
 	@echo "🔄 Terraform変数を生成中 (環境: $(ENVIRONMENT))..."
-	./scripts/generate_tfvars.sh $(INVENTORY)
+	./scripts/generate_tfvars.sh $(ENVIRONMENT)
 
 .PHONY: patch-argocd-apps
 patch-argocd-apps: ## ArgoCD Application マニフェストを環境に合わせて更新
@@ -141,50 +141,57 @@ ansible-dev-debug: ## Vagrant環境の完全リビルド（開発用）
 
 .PHONY: terraform-init
 terraform-init: ## Terraformを初期化
-	cd terraform/bootstrap && terraform init
+	@echo "🔧 Terraform初期化中 (環境: $(ENVIRONMENT))..."
+	cd terraform/environments/$(ENVIRONMENT) && terraform init
 
 .PHONY: terraform-plan
 terraform-plan: ## Terraformプランを表示
-	@if [ ! -f terraform/bootstrap/terraform.auto.tfvars ]; then \
+	@if [ ! -f terraform/environments/$(ENVIRONMENT)/terraform.auto.tfvars ]; then \
 		echo "⚠️  terraform.auto.tfvars が見つかりません。生成します..."; \
 		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
-	else \
-		./scripts/verify_tfvars_environment.sh $(ENVIRONMENT) || \
-		(echo "再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
 	fi
-	cd terraform/bootstrap && terraform plan
+	@echo "📋 Terraformプランを実行中 (環境: $(ENVIRONMENT))..."
+	cd terraform/environments/$(ENVIRONMENT) && terraform plan
 
 .PHONY: terraform-apply
 terraform-apply: ## 【Phase 2】Terraform適用（ArgoCDインストール）
-	@if [ ! -f terraform/bootstrap/terraform.auto.tfvars ]; then \
+	@if [ ! -f terraform/environments/$(ENVIRONMENT)/terraform.auto.tfvars ]; then \
 		echo "⚠️  terraform.auto.tfvars が見つかりません。生成します..."; \
 		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
-	else \
-		./scripts/verify_tfvars_environment.sh $(ENVIRONMENT) || \
-		(echo "🔄 環境不一致を検出。再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
 	fi
 	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT))..."
-	cd terraform/bootstrap && terraform apply
+	cd terraform/environments/$(ENVIRONMENT) && terraform apply
 
 .PHONY: terraform-apply-auto-approve
-terraform-apply-auto-approve: ## 【Phase 2】Terraform適用（ArgoCDインストール）
-	@if [ ! -f terraform/bootstrap/terraform.auto.tfvars ]; then \
+terraform-apply-auto-approve: ## Terraform適用（自動承認）
+	@if [ ! -f terraform/environments/$(ENVIRONMENT)/terraform.auto.tfvars ]; then \
 		echo "⚠️  terraform.auto.tfvars が見つかりません。生成します..."; \
 		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
-	else \
-		./scripts/verify_tfvars_environment.sh $(ENVIRONMENT) || \
-		(echo "🔄 環境不一致を検出。再生成中..." && $(MAKE) generate-tfvars ENV=$(ENVIRONMENT)); \
 	fi
-	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT))..."
-	cd terraform/bootstrap && terraform apply -auto-approve
+	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT)) [自動承認]..."
+	cd terraform/environments/$(ENVIRONMENT) && terraform apply -auto-approve
+
+.PHONY: terraform-destroy
+terraform-destroy: ## Terraformで作成したリソースを削除
+	@echo "🗑️  Terraformリソースを削除中 (環境: $(ENVIRONMENT))..."
+	cd terraform/environments/$(ENVIRONMENT) && terraform destroy
+
+.PHONY: terraform-output
+terraform-output: ## Terraform outputを表示
+	cd terraform/environments/$(ENVIRONMENT) && terraform output
+
+.PHONY: terraform-fmt
+terraform-fmt: ## Terraformコードをフォーマット
+	cd terraform && terraform fmt -recursive
+
+.PHONY: terraform-validate
+terraform-validate: ## Terraformコードを検証
+	@echo "🔍 Terraform検証中 (環境: $(ENVIRONMENT))..."
+	cd terraform/environments/$(ENVIRONMENT) && terraform validate
 
 .PHONY: terraform-apply-vagrant
 terraform-apply-vagrant: ## Vagrant環境でTerraformを適用
 	$(MAKE) terraform-apply ENV=vagrant
-
-.PHONY: terraform-destroy
-terraform-destroy: ## Terraformリソースを削除
-	cd terraform/bootstrap && terraform destroy
 
 # ==========================================
 # Phase 3: GitOps管理 (ArgoCD)

@@ -141,12 +141,21 @@ raspi-k8s-cluster/
 │   ├── reset.yml
 │   └── upgrade.yml
 ├── terraform/                   # Phase 2: インフラブートストラップ
-│   └── bootstrap/
-│       ├── main.tf
-│       ├── argocd.tf            # ArgoCD インストール
-│       ├── secrets.tf           # GitHub Token注入
-│       ├── variables.tf
-│       └── terraform.auto.tfvars # 自動生成（手動編集禁止）
+│   ├── modules/                 # 再利用可能モジュール
+│   │   ├── argocd/              # ArgoCDモジュール
+│   │   ├── sealed-secrets/      # Sealed Secretsモジュール
+│   │   └── atlantis-secrets/    # Atlantis Secretsモジュール
+│   ├── environments/            # 環境別設定
+│   │   ├── production/          # 本番環境
+│   │   │   ├── main.tf
+│   │   │   ├── providers.tf
+│   │   │   ├── variables.tf
+│   │   │   ├── outputs.tf
+│   │   │   ├── terraform.auto.tfvars  # 自動生成（手動編集禁止）
+│   │   │   └── terraform.tfvars       # ユーザー設定（gitignore）
+│   │   └── vagrant/             # 開発環境
+│   ├── README.md                # Terraformドキュメント
+│   └── MIGRATION.md             # マイグレーションガイド
 ├── k8s/                         # Phase 3: GitOps管理リソース
 │   ├── bootstrap/
 │   │   └── root-app.yaml        # ArgoCD App of Apps
