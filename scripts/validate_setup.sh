@@ -82,7 +82,7 @@ check_file "$PROJECT_ROOT/k8s/infra/metallb/base/kustomization.yaml" "MetalLB ba
 check_file "$PROJECT_ROOT/k8s/infra/metallb/overlays/production/kustomization.yaml" "MetalLB production overlay"
 check_file "$PROJECT_ROOT/k8s/infra/metallb/overlays/vagrant/kustomization.yaml" "MetalLB vagrant overlay"
 check_file "$PROJECT_ROOT/scripts/generate_tfvars.sh" "tfvars生成スクリプト"
-check_file "$PROJECT_ROOT/scripts/patch_argocd_apps.sh" "ArgoCD App パッチスクリプト"
+check_file "$PROJECT_ROOT/k8s/bootstrap/root.yaml" "ApplicationSet定義"
 echo ""
 
 echo "=== Ansible インベントリ値チェック ==="
@@ -90,9 +90,9 @@ if [[ -f "$INVENTORY_FILE" ]]; then
 	ACTUAL_METALLB_RANGE=$(grep "^metallb_ip_range=" "$INVENTORY_FILE" | cut -d'=' -f2 | tr -d ' ')
 	ACTUAL_INGRESS_IP=$(grep "^ingress_ip=" "$INVENTORY_FILE" | cut -d'=' -f2 | tr -d ' ')
 	ACTUAL_VIP=$(grep "^vip=" "$INVENTORY_FILE" | cut -d'=' -f2 | tr -d ' ')
-	ACTUAL_ENV=$(grep "^environment=" "$INVENTORY_FILE" | cut -d'=' -f2 | tr -d ' ')
+	ACTUAL_ENV=$(grep "^cluster_env=" "$INVENTORY_FILE" | cut -d'=' -f2 | tr -d ' ')
 
-	check_value "$ACTUAL_ENV" "$ENVIRONMENT" "environment"
+	check_value "$ACTUAL_ENV" "$ENVIRONMENT" "cluster_env"
 	check_value "$ACTUAL_METALLB_RANGE" "$EXPECTED_METALLB_RANGE" "metallb_ip_range"
 	check_value "$ACTUAL_INGRESS_IP" "$EXPECTED_INGRESS_IP" "ingress_ip"
 	check_value "$ACTUAL_VIP" "$EXPECTED_VIP" "vip"
@@ -102,7 +102,7 @@ echo ""
 echo "=== Kustomize overlay チェック ==="
 OVERLAY_FILE="$PROJECT_ROOT/k8s/infra/metallb/overlays/$ENVIRONMENT/kustomization.yaml"
 if [[ -f "$OVERLAY_FILE" ]]; then
-	OVERLAY_IP=$(grep "value:" "$OVERLAY_FILE" | awk '{print $2}')
+	OVERLAY_IP=$(grep "value:" "$OVERLAY_FILE" | awk '{print $2}' | tr -d '"')
 	check_value "$OVERLAY_IP" "$EXPECTED_METALLB_RANGE" "Kustomize overlay IPレンジ"
 else
 	echo -e "${RED}✗${NC} Overlay ファイルが見つかりません: $OVERLAY_FILE"
@@ -145,7 +145,7 @@ fi
 echo ""
 
 echo "=== スクリプト実行権限チェック ==="
-for script in generate_tfvars.sh patch_argocd_apps.sh validate_setup.sh; do
+for script in generate_tfvars.sh validate_setup.sh; do
 	script_path="$PROJECT_ROOT/scripts/$script"
 	if [[ -x "$script_path" ]]; then
 		echo -e "${GREEN}✓${NC} $script は実行可能です"
@@ -172,6 +172,5 @@ else
 	echo "修正方法:"
 	echo "  1. ansible/inventory/inventory*.ini を確認"
 	echo "  2. make generate-tfvars ENV=$ENVIRONMENT を実行"
-	echo "  3. make patch-argocd-apps ENV=$ENVIRONMENT を実行"
 	exit 1
 fi
