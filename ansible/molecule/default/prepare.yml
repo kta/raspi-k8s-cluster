@@ -196,11 +196,11 @@
           if [[ "$*" == *"get nodes"* ]]; then
             # Return a simple node list
             cat <<EOF
-NAME        STATUS   ROLES           AGE   VERSION
-pi-node1    Ready    control-plane   1d    v1.29.0
-pi-node2    Ready    control-plane   1d    v1.29.0
-pi-node3    Ready    control-plane   1d    v1.29.0
-EOF
+          NAME        STATUS   ROLES           AGE   VERSION
+          pi-node1    Ready    control-plane   1d    v1.29.0
+          pi-node2    Ready    control-plane   1d    v1.29.0
+          pi-node3    Ready    control-plane   1d    v1.29.0
+          EOF
             exit 0
 
           elif [[ "$*" == *"get node"* ]] && [[ "$*" == *"jsonpath"* ]] && [[ "$*" == *"Ready"* ]]; then
