@@ -106,19 +106,6 @@
         path: /etc/fstab
         state: touch
 
-    # --- 6.5. Enhanced IP Command ---
-    # The scripts use 'ip' command extensively to get IP addresses
-    # We need to ensure it returns valid IPs for eth0 interface
-    - name: Create /etc/hosts with node resolution
-      copy:
-        content: |
-          127.0.0.1 localhost
-          ::1 localhost ip6-localhost ip6-loopback
-          172.17.0.2 pi-node1
-          172.17.0.3 pi-node2
-          172.17.0.4 pi-node3
-        dest: /etc/hosts
-        mode: '0644'
     # --- 6. Kubeadm Bypass ---
     - name: Mock 'kubeadm' command
       copy:
@@ -187,52 +174,44 @@
         content: |
           #!/bin/bash
           # Intelligent kubectl mock for CI testing
-          # Handles common kubectl commands used in the playbook
-
-          # Log all kubectl calls for debugging
           echo "[MOCK kubectl] $@" >> /tmp/kubectl_mock.log
 
-          # Parse arguments to determine what command is being run
           if [[ "$*" == *"get nodes"* ]]; then
-            # Return a simple node list
-            cat <<EOF
+            cat <<'EOF'
           NAME        STATUS   ROLES           AGE   VERSION
           pi-node1    Ready    control-plane   1d    v1.29.0
           pi-node2    Ready    control-plane   1d    v1.29.0
           pi-node3    Ready    control-plane   1d    v1.29.0
           EOF
             exit 0
-
           elif [[ "$*" == *"get node"* ]] && [[ "$*" == *"jsonpath"* ]] && [[ "$*" == *"Ready"* ]]; then
-            # kubectl get node <hostname> -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
             echo "True"
             exit 0
-
           elif [[ "$*" == *"get pod"* ]] && [[ "$*" == *"etcd"* ]] && [[ "$*" == *"jsonpath"* ]]; then
-            # kubectl get pod -l component=etcd -o jsonpath='...'
             echo "Running"
             exit 0
-
           elif [[ "$*" == *"apply"* ]] && [[ "$*" == *"-f"* ]]; then
-            # kubectl apply -f <file>
             echo "[MOCK] Applied manifest successfully"
             exit 0
-
           elif [[ "$*" == *"taint"* ]]; then
-            # kubectl taint nodes --all node-role.kubernetes.io/control-plane-
             echo "[MOCK] Taint removed successfully"
             exit 0
-
           elif [[ "$*" == *"version"* ]]; then
-            # kubectl version
             echo "Client Version: v1.29.0"
             echo "Server Version: v1.29.0"
             exit 0
-
           else
-            # Default: return success for any other command
-            echo "[MOCK] kubectl command executed successfully"
             exit 0
           fi
         dest: /usr/bin/kubectl
+        mode: '0755'
+
+    - name: Mock CNI setup script
+      copy:
+        content: |
+          #!/bin/bash
+          # CNI setup mock for CI environment
+          echo "[MOCK] CNI setup script executed"
+          exit 0
+        dest: /tmp/cni_setup.sh
         mode: '0755'

@@ -9,10 +9,12 @@
     - name: Wait for dpkg lock before update
       shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
       changed_when: false
+      when: not is_ci_environment | default(false)
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
+      when: not is_ci_environment | default(false)
     - name: Upgrade all packages
       apt:
         upgrade: dist
@@ -41,6 +43,7 @@
     - name: Wait for dpkg lock to be released
       shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
       changed_when: false
+      when: not is_ci_environment | default(false)
     - name: Run common setup
       shell: >
         /tmp/common_setup.sh {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
@@ -103,6 +106,7 @@
     - name: Setup CNI on primary master
       shell: /tmp/cni_setup.sh
       changed_when: true
+      when: not is_ci_environment | default(false)
     - name: Wait for control plane to be ready
       shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes
       register: control_plane_check
@@ -110,6 +114,7 @@
       retries: 30
       delay: 10
       changed_when: false
+      when: not is_ci_environment | default(false)
     - name: Read Join Command from file
       slurp:
         src: /tmp/k8s_join_command.sh
