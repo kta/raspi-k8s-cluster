@@ -7,7 +7,28 @@
       "Bash(vagrant status:*)",
       "Bash(vagrant ssh:*)",
       "Bash(vagrant destroy:*)",
-      "Bash(vagrant up:*)"
+      "Bash(vagrant up:*)",
+      "Bash(kubectl get:*)",
+      "Bash(argocd app list:*)",
+      "Bash(kubectl apply:*)",
+      "Bash(make argocd-sync:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(kubectl rollout:*)",
+      "Bash(argocd context:*)",
+      "Bash(argocd version:*)",
+      "Bash(kubectl patch:*)",
+      "Bash(git -C /Users/spm/Documents/workspace/myspace/raspi-k8s-cluster status --short)",
+      "Bash(argocd app get:*)",
+      "Bash(make:*)",
+      "Bash(terraform init:*)",
+      "Bash(terraform plan:*)",
+      "Bash(terraform apply:*)",
+      "Bash(terraform validate:*)",
+      "Bash(ls:*)",
+      "Bash(kubectl tree:*)",
+      "Bash(sort:*)",
+      "Bash(kubectl describe:*)"
     ]
   }
 }

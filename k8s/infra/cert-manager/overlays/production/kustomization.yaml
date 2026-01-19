@@ -16,4 +16,4 @@ patches:
         value: "https://acme-v02.api.letsencrypt.org/directory"
       - op: replace
         path: /spec/acme/email
-        value: "admin@raspi.local"
+        value: "admin@example.com"

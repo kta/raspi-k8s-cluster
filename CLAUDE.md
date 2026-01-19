@@ -80,7 +80,7 @@ make setup-local-dns              # ローカルDNS設定
 - `node_ips` - 全ノードIPのカンマ区切りリスト
 - `metallb_ip_range` - MetalLB IPレンジ
 - `ingress_ip` - Ingress LoadBalancer IP
-- `environment` - 環境識別子（production/vagrant）
+- `cluster_env` - 環境識別子（production/vagrant）
 
 ### 環境別IP管理
 
@@ -179,7 +179,7 @@ raspi-k8s-cluster/
 │   └── MIGRATION.md             # マイグレーションガイド
 ├── k8s/                         # Phase 3: GitOps管理リソース
 │   ├── bootstrap/               # エントリーポイント
-│   │   ├── root.yaml            # ⭐ ApplicationSet
+│   │   ├── root.yaml            # ⭐ ApplicationSet（Terraform管理・リファレンス用）
 │   │   └── values/              # 環境パラメータ
 │   │       ├── production.yaml  # Production設定（IP、ドメイン等）
 │   │       └── vagrant.yaml     # Vagrant設定（IP、ドメイン等）
@@ -250,9 +250,43 @@ raspi-k8s-cluster/
 
 1. **インベントリが真実の源**: すべてのIP設定はAnsibleインベントリで管理
 2. **terraform.auto.tfvars は自動生成**: 手動編集禁止、`make generate-tfvars` で生成
-3. **環境を明示**: デプロイ時は常に `ENV=production` または `ENV=vagrant` を指定
-4. **マニフェストにIP直書き禁止**: Kustomize overlaysを使用
-5. **バージョンアップは1つずつ**: Kubernetesは飛び級禁止
+3. **ApplicationSet は Terraform 管理**: `k8s/bootstrap/root.yaml` は手動適用禁止、Terraformで管理
+4. **環境を明示**: デプロイ時は常に `ENV=production` または `ENV=vagrant` を指定
+5. **マニフェストにIP直書き禁止**: Kustomize overlaysを使用
+6. **バージョンアップは1つずつ**: Kubernetesは飛び級禁止
+7. **Git branchで環境を分離可能**: `git_revision` 変数で異なるbranchを環境ごとに指定可能
+
+## Git Branch戦略とベストプラクティス
+
+### 環境ごとのGit Branch設定（推奨）
+
+ApplicationSetの `git_revision` パラメータを使って、環境ごとに異なるGit branchを指定できます：
+
+```bash
+# Vagrant環境: develop branchを使用
+# terraform/environments/vagrant/terraform.tfvars
+git_revision = "develop"
+
+# Production環境: main branchを使用
+# terraform/environments/production/terraform.tfvars
+git_revision = "main"
+```
+
+**ワークフロー例:**
+1. 開発: `develop` branchで作業 → Vagrant環境に自動デプロイ
+2. テスト: Vagrant環境で動作確認
+3. リリース: `develop` を `main` にマージ → Production環境に自動デプロイ
+
+**メリット:**
+- 環境ごとに異なるコードバージョンを実行可能
+- Production環境への影響なしに開発・テスト可能
+- GitOpsの真のメリットを享受
+
+### 環境切り替えの注意点
+
+- **単一クラスタで複数環境を同時に実行することはできません**
+- Vagrant環境とProduction環境は異なるクラスタで実行
+- 環境変数 `ENV` でTerraformの対象環境を切り替え
 
 ## よくあるタスク
 
@@ -260,12 +294,15 @@ raspi-k8s-cluster/
 
 **ApplicationSetを使った環境別デプロイ:**
 ```bash
-# 全環境を自動検出してデプロイ
-kubectl apply -f k8s/bootstrap/root.yaml
+# ApplicationSetはTerraformで管理されています
+# Terraform適用時に自動的に作成・更新されます
+make terraform-apply ENV=vagrant  # または ENV=production
 
 # 確認
 kubectl get appset -n argocd
 kubectl get app -n argocd | grep infra-
+
+# 注意: k8s/bootstrap/root.yamlは手動適用禁止（リファレンス用）
 ```
 
 **新しいアプリケーション追加:**

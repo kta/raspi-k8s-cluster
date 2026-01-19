@@ -11,7 +11,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory  # Will be replaced by overlay
-    email: admin@raspi.local  # Will be replaced by overlay
+    email: admin@example.com  # Will be replaced by overlay
     privateKeySecretRef:
       name: letsencrypt-account-key
     solvers:

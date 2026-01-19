@@ -1,22 +1,53 @@
 # =============================================================================
-# Root ApplicationSet - Environment Parameterized
+# Root ApplicationSet - REFERENCE ONLY (Managed by Terraform)
 # =============================================================================
-# This is the single entry point for all environments.
-# It uses ApplicationSet to parameterize production/vagrant differences.
+# ⚠️  WARNING: This file is a REFERENCE ONLY.
+# The actual ApplicationSet is managed by Terraform (terraform/modules/argocd/applicationset.tf)
 #
-# Usage:
-#   kubectl apply -f k8s/bootstrap/root.yaml
+# DO NOT apply this file manually with kubectl.
+# Use Terraform to manage the ApplicationSet:
+#   make terraform-apply ENV=<environment>
 #
-# The ApplicationSet will:
-#   1. Discover environments from Git (production, vagrant)
-#   2. Generate an Application for each environment
-#   3. Each Application deploys all infrastructure apps via kustomization
+# =============================================================================
+# Purpose:
+#   This ApplicationSet is the single entry point for all GitOps-managed
+#   infrastructure. It dynamically discovers environments from Git and deploys
+#   the appropriate applications.
+#
+# How it works:
+#   1. Terraform creates this ApplicationSet with environment-specific configuration
+#   2. ApplicationSet discovers environment config from k8s/bootstrap/values/<env>.yaml
+#   3. Generates an Application (infra-<environment>) for each environment
+#   4. Each Application deploys all infrastructure apps via Kustomize overlays
+#
+# Environment selection:
+#   - The environment is determined by Terraform variables (var.environment)
+#   - Vagrant environment: k8s/bootstrap/values/vagrant.yaml
+#   - Production environment: k8s/bootstrap/values/production.yaml
+#
+# Git branch strategy:
+#   - You can set different Git branches per environment via Terraform
+#   - Example: main branch for production, develop branch for vagrant
+#   - Configure in terraform/environments/<env>/terraform.tfvars:
+#       git_revision = "main"     # or "develop", "staging", etc.
+#
+# Terraform configuration:
+#   See: terraform/modules/argocd/applicationset.tf
+#   Variables:
+#     - git_repo_url: Git repository URL
+#     - git_revision: Git branch/tag
+#     - environment: Environment name (production/vagrant)
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: infra-root
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/component: applicationset
+    app.kubernetes.io/managed-by: terraform
+
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -24,23 +55,29 @@ spec:
   generators:
     - git:
         repoURL: https://github.com/kta/raspi-k8s-cluster.git
-        revision: main
+        revision: main  # Configured via Terraform: var.git_revision
         files:
-          - path: "k8s/bootstrap/values/*.yaml"
+          # Terraform dynamically sets this based on var.environment
+          # Example: k8s/bootstrap/values/vagrant.yaml
+          - path: "k8s/bootstrap/values/${environment}.yaml"
 
   template:
     metadata:
       name: 'infra-{{.environment}}'
       namespace: argocd
+      labels:
+        app.kubernetes.io/instance: root
+        app.kubernetes.io/part-of: infra
+        environment: '{{.environment}}'
       finalizers:
         - resources-finalizer.argocd.argoproj.io
-    
+
     spec:
       project: default
 
       source:
         repoURL: https://github.com/kta/raspi-k8s-cluster.git
-        targetRevision: main
+        targetRevision: main  # Configured via Terraform: var.git_revision
         path: k8s/apps/overlays/{{.environment}}
 
       destination:

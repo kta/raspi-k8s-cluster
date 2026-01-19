@@ -3,6 +3,9 @@ github_token    = "YOUR_GITHUB_TOKEN_HERE"
 github_username = "YOUR_GITHUB_USERNAME"
 github_repo_url = "https://github.com/YOUR_USERNAME/YOUR_REPO.git"
 
+# Git Branch Configuration (Optional)
+# git_revision = "main"  # Branch for ArgoCD ApplicationSet (default: main)
+
 # ArgoCD Configuration (Optional)
 # argocd_namespace     = "argocd"
 # argocd_chart_version = "9.3.3"

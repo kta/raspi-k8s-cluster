@@ -112,9 +112,15 @@ variable "github_repo_url" {
   description = "GitOps repository URL"
 }
 
+variable "git_revision" {
+  type        = string
+  description = "Git revision to sync"
+}
+
 # Helm
 variable "helm_timeout" {
   type        = number
   default     = 900
   description = "Helm release timeout in seconds"
 }
+

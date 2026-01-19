@@ -9,6 +9,8 @@ module "argocd" {
   vip              = var.vip
   enable_ha        = var.enable_ha
   timeout          = var.helm_timeout
+  git_repo_url     = var.github_repo_url
+  git_revision     = var.git_revision
 
   labels = {
     environment = var.environment

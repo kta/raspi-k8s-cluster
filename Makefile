@@ -195,9 +195,11 @@ terraform-apply-vagrant: ## Vagrant環境でTerraformを適用
 .PHONY: argocd-bootstrap
 argocd-bootstrap: ## 【Phase 3】ArgoCD ApplicationSet適用（GitOps開始）
 	@echo "🎯 ArgoCD ApplicationSetを適用中..."
-	@echo "  📦 新構造: ApplicationSetが自動的に全環境を検出します"
-	kubectl apply -f k8s/bootstrap/root.yaml
-	@echo "✅ GitOps管理を開始しました"
+	@echo "  ⚠️  ApplicationSetはTerraformで管理されています"
+	@echo "  📦 terraform apply実行時に自動的に作成されます"
+	@echo ""
+	@echo "💡 手動で再適用する場合:"
+	@echo "  make terraform-apply ENV=$(ENVIRONMENT)"
 	@echo ""
 	@echo "🔍 確認コマンド:"
 	@echo "  kubectl get appset -n argocd"
@@ -205,6 +207,12 @@ argocd-bootstrap: ## 【Phase 3】ArgoCD ApplicationSet適用（GitOps開始）
 
 .PHONY: argocd-sync
 argocd-sync: ## すべてのArgoCD Appを同期
+	@echo "🔄 ArgoCD Applicationsを同期中 (環境: $(ENVIRONMENT))..."
+	argocd app sync --async --prune infra-$(ENVIRONMENT)
+
+.PHONY: argocd-sync-all
+argocd-sync-all: ## すべての環境のArgoCD Appを同期
+	@echo "🔄 すべてのArgoCD Applicationsを同期中..."
 	argocd app sync --async --prune -l app.kubernetes.io/instance=root
 
 .PHONY: argocd-status

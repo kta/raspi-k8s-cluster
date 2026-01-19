@@ -112,6 +112,12 @@ variable "github_repo_url" {
   description = "GitOps repository URL"
 }
 
+variable "git_revision" {
+  type        = string
+  default     = "main"
+  description = "Git branch/revision for ArgoCD ApplicationSet"
+}
+
 # Helm
 variable "helm_timeout" {
   type        = number

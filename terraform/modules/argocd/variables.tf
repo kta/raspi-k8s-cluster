@@ -58,3 +58,15 @@ variable "labels" {
   default     = {}
   description = "Additional labels for resources"
 }
+
+variable "git_repo_url" {
+  type        = string
+  default     = "https://github.com/kta/raspi-k8s-cluster.git"
+  description = "Git repository URL for ArgoCD applications"
+}
+
+variable "git_revision" {
+  type        = string
+  default     = "main"
+  description = "Git revision/branch for ArgoCD applications"
+}
