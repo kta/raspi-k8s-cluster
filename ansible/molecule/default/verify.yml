@@ -31,9 +31,10 @@
           grep "priority 100" /etc/keepalived/keepalived.conf
         fi
       changed_when: false
-      # --- 4. 実行完了の確認 ---
-      # Kubeadmをモック化したため、モックが生成するはずのファイルがあるか確認
-      # これにより「スクリプトの条件分岐が正しく通り、kubeadm init/join コマンドまで到達したか」がわかる
+
+# --- 4. 実行完了の確認 ---
+# Kubeadmをモック化したため、モックが生成するはずのファイルがあるか確認
+# これにより「スクリプトの条件分岐が正しく通り、kubeadm init/join コマンドまで到達したか」がわかる
 - name: Verify Primary Node Specifics
   hosts: primary_master
   become: true

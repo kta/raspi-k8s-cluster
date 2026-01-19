@@ -81,6 +81,16 @@ provisioner:
         node_ips: "pi-node1,pi-node2,pi-node3"
         # CI環境判定用フラグ
         is_ci_environment: true
+    host_vars:
+      pi-node1:
+        priority: 101
+        state: MASTER
+      pi-node2:
+        priority: 100
+        state: BACKUP
+      pi-node3:
+        priority: 100
+        state: BACKUP
 verifier:
   name: ansible
 scenario:
