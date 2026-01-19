@@ -104,7 +104,7 @@ make show-ingress-urls ENV=vagrant
 nip.ioを使う場合、Ingressのhostを以下のように設定：
 
 ```yaml
-# k8s/infra/argocd/ingress.yaml
+# k8s/infrastructure/argocd/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

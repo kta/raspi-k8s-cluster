@@ -1,0 +1,41 @@
+# =============================================================================
+# Vagrant Environment Overlay - Example App
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: example-app
+
+resources:
+  - ../../base
+
+patches:
+  # Vagrant: 1 replica for resource efficiency
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: example-app
+
+  # Vagrant local domain
+  - patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: example-app.vagrant.local
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: example-app.vagrant.local
+    target:
+      kind: Ingress
+      name: example-app
+
+  # Vagrant: use staging TLS issuer
+  - patch: |-
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-staging
+    target:
+      kind: Ingress
+      name: example-app

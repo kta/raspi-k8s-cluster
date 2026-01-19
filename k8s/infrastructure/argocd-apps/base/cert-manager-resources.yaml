@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
-    path: k8s/infra/cert-manager/overlays/production  # Will be patched by overlay
+    path: k8s/infrastructure/cert-manager/overlays/production  # Will be patched by overlay
 
   destination:
     server: https://kubernetes.default.svc

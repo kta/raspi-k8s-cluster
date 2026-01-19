@@ -167,7 +167,7 @@ certManager:
 
 ### 3. Kustomize Overlays
 
-#### MetalLB Production: `k8s/infra/metallb/overlays/production/kustomization.yaml`
+#### MetalLB Production: `k8s/infrastructure/metallb/overlays/production/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -188,7 +188,7 @@ patches:
         value: "192.168.1.200-192.168.1.220"
 ```
 
-#### MetalLB Vagrant: `k8s/infra/metallb/overlays/vagrant/kustomization.yaml`
+#### MetalLB Vagrant: `k8s/infrastructure/metallb/overlays/vagrant/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -223,7 +223,7 @@ vim k8s/bootstrap/values/production.yaml
 # metallb.ipRange, ingress.ipを変更
 
 # 3. Kustomize overlayを編集
-vim k8s/infra/metallb/overlays/production/kustomization.yaml
+vim k8s/infrastructure/metallb/overlays/production/kustomization.yaml
 # IPアドレスレンジを変更
 
 # 4. Terraform変数を再生成
@@ -250,7 +250,7 @@ vim ansible/inventory/inventory_vagrant.ini
 vim k8s/bootstrap/values/vagrant.yaml
 
 # 3. Kustomize overlayを編集
-vim k8s/infra/metallb/overlays/vagrant/kustomization.yaml
+vim k8s/infrastructure/metallb/overlays/vagrant/kustomization.yaml
 
 # 4. Terraform変数を再生成
 make generate-tfvars ENV=vagrant
@@ -302,8 +302,8 @@ YAML
 
 ```bash
 # MetalLB
-mkdir -p k8s/infra/metallb/overlays/staging
-cat > k8s/infra/metallb/overlays/staging/kustomization.yaml << 'YAML'
+mkdir -p k8s/infrastructure/metallb/overlays/staging
+cat > k8s/infrastructure/metallb/overlays/staging/kustomization.yaml << 'YAML'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -323,8 +323,8 @@ patches:
 YAML
 
 # Cert-Manager
-mkdir -p k8s/infra/cert-manager/overlays/staging
-cat > k8s/infra/cert-manager/overlays/staging/kustomization.yaml << 'YAML'
+mkdir -p k8s/infrastructure/cert-manager/overlays/staging
+cat > k8s/infrastructure/cert-manager/overlays/staging/kustomization.yaml << 'YAML'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -344,21 +344,21 @@ patches:
 YAML
 
 # ArgoCD Ingress
-mkdir -p k8s/infra/argocd/overlays/staging
-cp k8s/infra/argocd/overlays/production/kustomization.yaml \
-   k8s/infra/argocd/overlays/staging/kustomization.yaml
+mkdir -p k8s/infrastructure/argocd/overlays/staging
+cp k8s/infrastructure/argocd/overlays/production/kustomization.yaml \
+   k8s/infrastructure/argocd/overlays/staging/kustomization.yaml
 
 # Atlantis Ingress
-mkdir -p k8s/infra/atlantis/overlays/staging
-cp k8s/infra/atlantis/overlays/production/kustomization.yaml \
-   k8s/infra/atlantis/overlays/staging/kustomization.yaml
+mkdir -p k8s/infrastructure/atlantis/overlays/staging
+cp k8s/infrastructure/atlantis/overlays/production/kustomization.yaml \
+   k8s/infrastructure/atlantis/overlays/staging/kustomization.yaml
 ```
 
 ### 4. Application Overlays作成
 
 ```bash
-mkdir -p k8s/apps/overlays/staging
-cat > k8s/apps/overlays/staging/kustomization.yaml << 'YAML'
+mkdir -p k8s/infrastructure/argocd-apps/overlays/staging
+cat > k8s/infrastructure/argocd-apps/overlays/staging/kustomization.yaml << 'YAML'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -374,7 +374,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/metallb/overlays/staging
+        value: k8s/infrastructure/metallb/overlays/staging
 
   - target:
       kind: Application
@@ -382,7 +382,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/cert-manager/overlays/staging
+        value: k8s/infrastructure/cert-manager/overlays/staging
 
   - target:
       kind: Application
@@ -398,7 +398,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/argocd/overlays/staging
+        value: k8s/infrastructure/argocd/overlays/staging
 
   - target:
       kind: Application
@@ -406,7 +406,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/atlantis/overlays/staging
+        value: k8s/infrastructure/atlantis/overlays/staging
 YAML
 ```
 
@@ -474,7 +474,7 @@ cat k8s/bootstrap/values/production.yaml
 
 ```bash
 # 1. Kustomize overlayを確認
-kubectl kustomize k8s/infra/metallb/overlays/production
+kubectl kustomize k8s/infrastructure/metallb/overlays/production
 
 # 2. Application sync状態確認
 kubectl get app -n argocd -o json | jq -r '.items[] | "\(.metadata.name): \(.status.sync.status)"'
@@ -492,7 +492,7 @@ kubectl get ipaddresspool -n metallb-system -o yaml
 # Applicationのpathがcorrectか確認
 kubectl get app -n argocd infra-production -o yaml | grep path
 
-# 期待値: k8s/apps/overlays/production
+# 期待値: k8s/infrastructure/argocd-apps/overlays/production
 # 実際の値が違う場合、ApplicationSet templateを確認
 ```
 

@@ -37,12 +37,12 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 	# CNI (Flannel) のインストール
 	echo "Installing Flannel CNI..."
 	# ローカルの修正済みマニフェストを使用（--iface を動的に設定）
-	# NOTE: k8s/infra/cni/kube-flannel.yml は ArgoCDで管理するが、
+	# NOTE: k8s/infrastructure/cni/kube-flannel.yml は ArgoCDで管理するが、
 	#       初回構築時はArgoCDがまだないため、ここで直接applyする
-	# Vagrant環境では /vagrant/k8s/infra/cni/kube-flannel.yml
+	# Vagrant環境では /vagrant/k8s/infrastructure/cni/kube-flannel.yml
 	# 実機環境では Ansibleが /tmp/kube-flannel.yml にコピー済み
-	if [ -f /vagrant/k8s/infra/cni/kube-flannel.yml ]; then
-		FLANNEL_MANIFEST="/vagrant/k8s/infra/cni/kube-flannel.yml"
+	if [ -f /vagrant/k8s/infrastructure/cni/kube-flannel.yml ]; then
+		FLANNEL_MANIFEST="/vagrant/k8s/infrastructure/cni/kube-flannel.yml"
 	elif [ -f /tmp/kube-flannel.yml ]; then
 		FLANNEL_MANIFEST="/tmp/kube-flannel.yml"
 	else

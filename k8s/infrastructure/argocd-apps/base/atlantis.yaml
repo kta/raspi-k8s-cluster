@@ -1,46 +1,45 @@
 # =============================================================================
-# Traefik Ingress Controller Application
+# Atlantis Application
 # =============================================================================
-# Modern HTTP reverse proxy and load balancer.
+# Terraform Pull Request Automation.
+# Environment-specific overlay will provide hostname and GitHub config.
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: traefik
+  name: atlantis
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-4"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
 
   source:
-    repoURL: https://traefik.github.io/charts
-    chart: traefik
-    targetRevision: 33.2.1
+    repoURL: https://runatlantis.github.io/helm-charts
+    chart: atlantis
+    targetRevision: 5.10.0
     helm:
-      releaseName: traefik
+      releaseName: atlantis
       valuesObject:
-        service:
-          type: LoadBalancer
-          annotations:
-            metallb.universe.tf/loadBalancerIPs: 192.168.1.200  # Will be patched by overlay
+        orgAllowlist: github.com/kta/*  # Will be patched by overlay
+        ingress:
+          enabled: false  # We manage Ingress separately
         resources:
           requests:
             cpu: 100m
-            memory: 128Mi
+            memory: 256Mi
           limits:
             cpu: 500m
-            memory: 256Mi
-        ports:
-          web:
-            redirectTo:
-              port: websecure
-        additionalArguments:
-          - "--providers.kubernetesingress.ingressclass=traefik"
+            memory: 512Mi
+        environmentSecrets:
+          - name: ATLANTIS_GH_TOKEN
+            secretKeyRef:
+              name: atlantis-secrets
+              key: github-token
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: traefik
+    namespace: atlantis
 
   syncPolicy:
     automated:
@@ -50,25 +49,25 @@ spec:
       - CreateNamespace=true
 
 ---
-# Traefik Middleware
+# Atlantis Ingress
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: traefik-middleware
+  name: atlantis-ingress
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-3"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default
 
   source:
     repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
-    path: k8s/infra/traefik/base
+    path: k8s/infrastructure/atlantis/overlays/production  # Will be patched by overlay
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: traefik
+    namespace: atlantis
 
   syncPolicy:
     automated:

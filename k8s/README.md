@@ -1,27 +1,33 @@
 # Kubernetes GitOps Structure
 
+**最新構造（2026年1月リファクタリング v2）**
+
 This directory contains all Kubernetes resources managed by ArgoCD following GitOps best practices.
 
 ## 🏗️ Architecture
 
 ```
 k8s/
-├── bootstrap/           # 🚀 Entry Points
-│   ├── root.yaml        # ApplicationSet (environment-parameterized)
-│   └── values/          # Environment parameters (production, vagrant)
+├── bootstrap/               # 🚀 Entry Points
+│   ├── root.yaml            # ApplicationSet (Terraform managed)
+│   └── values/              # Environment parameters (production, vagrant)
 │
-├── apps/                # 📦 ArgoCD Application Definitions
-│   ├── base/            # Common Application definitions
-│   └── overlays/        # Environment-specific patches (production, vagrant)
+├── infrastructure/          # 🏗️  All Infrastructure
+│   ├── argocd-apps/         # 📦 ArgoCD Application CRD Definitions
+│   │   ├── base/            # Common Application definitions
+│   │   └── overlays/        # Environment-specific patches
+│   │
+│   ├── sealed-secrets/      # ☸️  Kubernetes Manifests
+│   ├── cni/                 # Pod networking (Flannel)
+│   ├── metallb/             # LoadBalancer implementation
+│   ├── cert-manager/        # TLS certificate automation
+│   ├── traefik/             # Ingress controller
+│   ├── argocd/              # ArgoCD UI ingress
+│   └── atlantis/            # Terraform PR automation
 │
-└── infra/               # ☸️  Kubernetes Manifests
-    ├── sealed-secrets/  # (Helm chart - no manifests)
-    ├── cni/             # Pod networking (Flannel)
-    ├── metallb/         # LoadBalancer implementation
-    ├── cert-manager/    # TLS certificate automation
-    ├── traefik/         # Ingress controller
-    ├── argocd/          # ArgoCD UI ingress
-    └── atlantis/        # Terraform PR automation
+└── applications/            # 🚢 User Applications (NEW!)
+    ├── README.md            # Application deployment guide
+    └── _example/            # Example app structure
 ```
 
 ## 🚀 Quick Start
@@ -29,8 +35,13 @@ k8s/
 ### Initial Setup
 
 ```bash
-# Apply the root ApplicationSet (discovers all environments)
-kubectl apply -f k8s/bootstrap/root.yaml
+# ⚠️ DO NOT apply root.yaml manually!
+# It's managed by Terraform:
+make terraform-apply ENV=vagrant  # or ENV=production
+
+# Verify deployment
+kubectl get appset -n argocd
+kubectl get app -n argocd | grep infra-
 ```
 
 The ApplicationSet will:
@@ -42,16 +53,20 @@ The ApplicationSet will:
 
 Applications are deployed in the following order (via sync-wave annotations):
 
-| Wave | Component | Purpose |
-|------|-----------|---------|
-| -9 | sealed-secrets | Secret encryption |
-| -8 | cni | Pod networking |
-| -7 | metallb | LoadBalancer |
-| -6 | cert-manager | TLS certificates |
-| -5 | cert-manager-resources | ClusterIssuers |
-| -4 | traefik | Ingress controller |
-| 0 | argocd-ingress | ArgoCD UI access |
-| 1 | atlantis | Terraform automation |
+| Wave | Component | Purpose | Location |
+|------|-----------|---------|----------|
+| -9 | sealed-secrets | Secret encryption | infrastructure/ |
+| -8 | cni | Pod networking | infrastructure/ |
+| -7 | metallb | LoadBalancer | infrastructure/ |
+| -6 | cert-manager | TLS certificates | infrastructure/ |
+| -6 | metallb-config | IP pool configuration | infrastructure/ |
+| -5 | cert-manager-resources | ClusterIssuers | infrastructure/ |
+| -4 | traefik | Ingress controller | infrastructure/ |
+| -3 | traefik-middleware | Middleware config | infrastructure/ |
+| 0 | argocd-ingress | ArgoCD UI access | infrastructure/ |
+| 1 | atlantis | Terraform automation | infrastructure/ |
+| 2 | atlantis-ingress | Atlantis webhook | infrastructure/ |
+| **10+** | **User apps** | **Your applications** | **applications/** |
 
 ## 📝 Design Principles
 
@@ -65,103 +80,182 @@ Applications are deployed in the following order (via sync-wave annotations):
 - **Solution**: ApplicationSet with environment parameters + Kustomize overlays
 - **Benefit**: Single source of truth, minimal environment differences
 
-### 3. **Active infra/ Directory** ✅ Actual Kubernetes manifests
-- **Problem**: `infra/` was underutilized
-- **Solution**: `apps/` = ArgoCD definitions, `infra/` = Kubernetes resources
-- **Benefit**: Clear separation, easier to navigate
+### 3. **Infrastructure vs Applications** ✅ Clear separation
+- **Problem**: Mixing infrastructure and user applications
+- **Solution**: `infrastructure/` for infra, `applications/` for user apps
+- **Benefit**: No confusion, clear responsibilities
+
+### 4. **Better Naming** ✅ `argocd-apps/` directory
+- **Problem**: `apps/` is ambiguous (ArgoCD Apps or user apps?)
+- **Solution**: `argocd-apps/` clearly indicates ArgoCD Application CRDs
+- **Benefit**: Self-documenting structure
 
 ## 🔧 Making Changes
 
-### Adding a New Application
+### Adding Infrastructure Component
 
-1. Create Application definition in `apps/base/`:
+1. Create Application definition in `infrastructure/argocd-apps/base/`:
 ```yaml
-# apps/base/my-app.yaml
+# infrastructure/argocd-apps/base/my-component.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: my-app
+  name: my-component
+  namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   source:
     repoURL: https://github.com/kta/raspi-k8s-cluster.git
-    path: k8s/infra/my-app/overlays/production
+    targetRevision: main
+    path: k8s/infrastructure/my-component/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: my-component
   # ...
 ```
 
-2. Add to `apps/base/kustomization.yaml`:
+2. Add to `infrastructure/argocd-apps/base/kustomization.yaml`:
 ```yaml
 resources:
-  - my-app.yaml
+  - my-component.yaml
 ```
 
-3. Create manifests in `infra/my-app/`:
-```
-infra/my-app/
-├── base/
-│   ├── kustomization.yaml
-│   └── deployment.yaml
-└── overlays/
-    ├── production/
-    │   └── kustomization.yaml
-    └── vagrant/
-        └── kustomization.yaml
-```
-
-4. Patch environment differences in `apps/overlays/*/kustomization.yaml`
-
-### Changing Environment Configuration
-
-All environment differences are in:
-- `bootstrap/values/*.yaml` - High-level parameters
-- `apps/overlays/*/kustomization.yaml` - Application path patches
-- `infra/*/overlays/*/kustomization.yaml` - Manifest value patches
-
-**Example**: Change MetalLB IP range for vagrant:
+3. Create manifests in `infrastructure/my-component/`:
 ```bash
-vim k8s/infra/metallb/overlays/vagrant/kustomization.yaml
-# Edit the IP range patch
-git commit -am "Change vagrant MetalLB IP range"
-git push
-# ArgoCD auto-syncs
+mkdir -p infrastructure/my-component/{base,overlays/{production,vagrant}}
+# Add your Kubernetes manifests
 ```
 
-## 🌐 Environment Parameters
+4. Add environment-specific patches in `infrastructure/argocd-apps/overlays/`:
+```yaml
+# infrastructure/argocd-apps/overlays/production/kustomization.yaml
+patches:
+  - target:
+      kind: Application
+      name: my-component
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/my-component/overlays/production
+```
 
-### Production (`bootstrap/values/production.yaml`)
-- MetalLB: `192.168.1.200-192.168.1.220`
-- Ingress IP: `192.168.1.200`
-- ACME: Let's Encrypt Production
+### Adding User Application
 
-### Vagrant (`bootstrap/values/vagrant.yaml`)
-- MetalLB: `192.168.56.200-192.168.56.220`
-- Ingress IP: `192.168.56.200`
-- ACME: Let's Encrypt Staging
+**See [applications/README.md](applications/README.md) for detailed guide!**
 
-## 📚 Additional Resources
-
-- [ArgoCD App of Apps Pattern](https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-bootstrapping/)
-- [Kustomize Best Practices](https://kubectl.docs.kubernetes.io/guides/config_management/introduction/)
-- [Sync Waves and Phases](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/)
-
-## 🆘 Troubleshooting
-
-### Application stuck in "Progressing"
+Quick example:
 ```bash
-kubectl get app -n argocd my-app -o yaml | grep -A 10 status
-# Check sync-wave order and dependencies
+APP_NAME="my-app"
+mkdir -p applications/${APP_NAME}/{base,overlays/{production,vagrant}}
+
+# Create manifests (deployment, service, ingress, etc.)
+vim applications/${APP_NAME}/base/kustomization.yaml
+
+# Create ArgoCD Application definition
+vim infrastructure/argocd-apps/base/${APP_NAME}.yaml
+
+# Commit and deploy
+git add . && git commit -m "Add ${APP_NAME}" && git push
 ```
 
-### Environment not discovered
+### Changing Environment Values
+
+1. Edit environment parameters:
 ```bash
-# Check ApplicationSet generator
-kubectl get appset -n argocd infra-root -o yaml
-# Ensure bootstrap/values/*.yaml has correct format
+# Change IPs, domains, etc.
+vim bootstrap/values/production.yaml
+vim bootstrap/values/vagrant.yaml
 ```
 
-### Wrong environment deployed
+2. Edit Kustomize overlays for specific components:
 ```bash
-# Check which overlay is referenced
-kubectl get app -n argocd infra-production -o yaml | grep path
+# Example: Change MetalLB IP range
+vim infrastructure/metallb/overlays/production/kustomization.yaml
 ```
+
+3. Commit and push:
+```bash
+git add . && git commit -m "Update production IPs" && git push
+```
+
+ArgoCD will automatically sync the changes (if automated sync is enabled).
+
+## 🌐 Environment Differences
+
+Only these values differ between environments (everything else is identical):
+
+| Component | Production | Vagrant |
+|-----------|-----------|---------|
+| MetalLB IP Range | 192.168.1.200-220 | 192.168.56.200-220 |
+| Traefik LoadBalancer IP | 192.168.1.200 | 192.168.56.200 |
+| Let's Encrypt ACME | Production | Staging |
+| Domains | raspi.local | raspi.local |
+
+## 🔍 Troubleshooting
+
+### Application not syncing
+```bash
+# Check ApplicationSet
+kubectl get appset -n argocd
+
+# Check generated Applications
+kubectl get app -n argocd
+
+# Check specific app status
+argocd app get infra-production
+
+# Force sync
+argocd app sync infra-production
+```
+
+### Wrong paths in Applications
+Make sure your overlay patches are correct:
+```bash
+# Check overlay patches
+cat infrastructure/argocd-apps/overlays/production/kustomization.yaml
+```
+
+### Environment not detected
+Verify environment parameters file exists:
+```bash
+ls -la bootstrap/values/
+# Should show: production.yaml, vagrant.yaml
+```
+
+## 📚 Learn More
+
+- [STRUCTURE.md](STRUCTURE.md) - Complete directory structure reference
+- [applications/README.md](applications/README.md) - User application deployment guide
+- [ArgoCD ApplicationSet Documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/)
+- [Kustomize Documentation](https://kubectl.docs.kubernetes.io/references/kustomize/)
+- [Project CLAUDE.md](/CLAUDE.md) - Full project documentation
+
+## 🆕 What Changed in v2
+
+### Before (v1):
+```
+k8s/
+├── apps/          # ArgoCD Application CRDs
+└── infra/         # Kubernetes manifests
+```
+
+### After (v2):
+```
+k8s/
+├── infrastructure/        # All infrastructure
+│   ├── argocd-apps/      # ArgoCD Application CRDs
+│   ├── cni/              # Kubernetes manifests
+│   └── ...
+└── applications/         # User apps (NEW!)
+```
+
+### Migration Benefits:
+✅ **No confusion**: Clear separation between infrastructure and user apps
+✅ **Better naming**: `argocd-apps/` self-explanatory
+✅ **Unified structure**: All infra in one place
+✅ **Extensible**: Easy to add user apps without mixing with infra
+
+---
+
+**Note**: The `bootstrap/root.yaml` file is a **reference only**. The actual ApplicationSet is managed by Terraform. Use `make terraform-apply ENV=<environment>` to deploy.

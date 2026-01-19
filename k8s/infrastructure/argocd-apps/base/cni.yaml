@@ -1,29 +1,30 @@
 # =============================================================================
-# ArgoCD Ingress Application
+# CNI Application
 # =============================================================================
-# Exposes ArgoCD UI via Ingress.
-# Environment-specific overlay will provide hostname.
+# Deploys Flannel CNI for pod networking.
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd-ingress
+  name: cni
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "-8"
 spec:
   project: default
 
   source:
     repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
-    path: k8s/infra/argocd/overlays/production  # Will be patched by overlay
+    path: k8s/infrastructure/cni/base
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: kube-flannel
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

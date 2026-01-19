@@ -19,7 +19,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/metallb/overlays/production
+        value: k8s/infrastructure/metallb/overlays/production
 
   # Cert-Manager Resources - production overlay path
   - target:
@@ -28,7 +28,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/cert-manager/overlays/production
+        value: k8s/infrastructure/cert-manager/overlays/production
 
   # Traefik - production LoadBalancer IP
   - target:
@@ -46,7 +46,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/argocd/overlays/production
+        value: k8s/infrastructure/argocd/overlays/production
 
   # Atlantis Ingress - production overlay path
   - target:
@@ -55,4 +55,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infra/atlantis/overlays/production
+        value: k8s/infrastructure/atlantis/overlays/production

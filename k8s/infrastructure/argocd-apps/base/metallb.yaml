@@ -65,7 +65,7 @@ spec:
   source:
     repoURL: https://github.com/kta/raspi-k8s-cluster.git
     targetRevision: main
-    path: k8s/infra/metallb/overlays/production  # Will be patched by overlay
+    path: k8s/infrastructure/metallb/overlays/production  # Will be patched by overlay
 
   destination:
     server: https://kubernetes.default.svc

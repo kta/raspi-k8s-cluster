@@ -104,25 +104,27 @@ ArgoCD Applications
 
 ### k8s構造の特徴
 
-**新構造（2026年1月リファクタリング後）**:
+**最新構造（2026年1月リファクタリング v2）**:
 - **ApplicationSet**: `bootstrap/root.yaml`が全環境を自動検出
 - **base/overlays パターン**: 共通定義と環境差分を分離
 - **sync-wave 順序管理**: 番号プレフィックス廃止、アノテーションで依存管理
-- **apps/ と infra/ の分離**: ArgoCD定義と実K8sリソースを明確に分離
+- **infrastructure/ 統合**: ArgoCD Application CRDとK8sマニフェストを `infrastructure/` に統合
+- **applications/ 分離**: 自作アプリケーション専用ディレクトリで、インフラとアプリを明確に分離
 
 **デプロイ順序（sync-wave）**:
-| Wave | Component | 目的 |
-|------|-----------|------|
-| -9 | sealed-secrets | Secret暗号化 |
-| -8 | cni | Pod networking |
-| -7 | metallb | LoadBalancer controller |
-| -6 | cert-manager, metallb-config | TLS自動化 + IP pool |
-| -5 | cert-manager-resources | ClusterIssuers |
-| -4 | traefik | Ingress controller |
-| -3 | traefik-middleware | Middleware設定 |
-| 0 | argocd-ingress | ArgoCD UI |
-| 1 | atlantis | Terraform自動化 |
-| 2 | atlantis-ingress | Atlantis webhook |
+| Wave | Component | 目的 | 配置場所 |
+|------|-----------|------|----------|
+| -9 | sealed-secrets | Secret暗号化 | infrastructure/ |
+| -8 | cni | Pod networking | infrastructure/ |
+| -7 | metallb | LoadBalancer controller | infrastructure/ |
+| -6 | cert-manager, metallb-config | TLS自動化 + IP pool | infrastructure/ |
+| -5 | cert-manager-resources | ClusterIssuers | infrastructure/ |
+| -4 | traefik | Ingress controller | infrastructure/ |
+| -3 | traefik-middleware | Middleware設定 | infrastructure/ |
+| 0 | argocd-ingress | ArgoCD UI | infrastructure/ |
+| 1 | atlantis | Terraform自動化 | infrastructure/ |
+| 2 | atlantis-ingress | Atlantis webhook | infrastructure/ |
+| **10+** | **自作アプリ** | **ユーザーアプリケーション** | **applications/** |
 
 ### 高可用性セットアップ
 - 3ノードコントロールプレーン（taint除去、Pod配置可能）
@@ -183,52 +185,67 @@ raspi-k8s-cluster/
 │   │   └── values/              # 環境パラメータ
 │   │       ├── production.yaml  # Production設定（IP、ドメイン等）
 │   │       └── vagrant.yaml     # Vagrant設定（IP、ドメイン等）
-│   ├── apps/                    # ArgoCD Application定義
-│   │   ├── base/                # 共通Application定義
-│   │   │   ├── kustomization.yaml    # sync-wave順序管理
-│   │   │   ├── sealed-secrets.yaml   # Wave -9
-│   │   │   ├── cni.yaml              # Wave -8
-│   │   │   ├── metallb.yaml          # Wave -7,-6
-│   │   │   ├── cert-manager.yaml     # Wave -6
-│   │   │   ├── cert-manager-resources.yaml # Wave -5
-│   │   │   ├── traefik.yaml          # Wave -4,-3
-│   │   │   ├── argocd-ingress.yaml   # Wave 0
-│   │   │   └── atlantis.yaml         # Wave 1,2
-│   │   └── overlays/            # 環境別差分（パス書き換え）
-│   │       ├── production/
-│   │       │   └── kustomization.yaml
-│   │       └── vagrant/
-│   │           └── kustomization.yaml
-│   └── infra/                   # Kubernetesマニフェスト（実リソース）
-│       ├── cni/
-│       │   └── base/
-│       │       ├── kustomization.yaml
-│       │       └── kube-flannel.yml
-│       ├── metallb/
-│       │   ├── base/
-│       │   │   ├── kustomization.yaml
-│       │   │   └── ip-pool.yaml
-│       │   └── overlays/
-│       │       ├── production/  # IP: 192.168.1.200-220
-│       │       └── vagrant/     # IP: 192.168.56.200-220
-│       ├── cert-manager/
-│       │   ├── base/
-│       │   │   ├── kustomization.yaml
-│       │   │   └── cluster-issuer.yaml
-│       │   └── overlays/
-│       │       ├── production/  # ACME: production
-│       │       └── vagrant/     # ACME: staging
-│       ├── traefik/
-│       │   └── base/
-│       │       └── middleware.yaml
-│       ├── argocd/
-│       │   ├── base/
-│       │   │   └── ingress.yaml
-│       │   └── overlays/
-│       │       ├── production/
-│       │       └── vagrant/
-│       └── atlantis/
+│   │
+│   ├── infrastructure/          # インフラ全体（ArgoCD Apps + Manifests）
+│   │   ├── argocd-apps/         # ArgoCD Application CRD定義
+│   │   │   ├── base/            # 共通Application定義
+│   │   │   │   ├── kustomization.yaml    # sync-wave順序管理
+│   │   │   │   ├── sealed-secrets.yaml   # Wave -9
+│   │   │   │   ├── cni.yaml              # Wave -8
+│   │   │   │   ├── metallb.yaml          # Wave -7,-6
+│   │   │   │   ├── cert-manager.yaml     # Wave -6
+│   │   │   │   ├── cert-manager-resources.yaml # Wave -5
+│   │   │   │   ├── traefik.yaml          # Wave -4,-3
+│   │   │   │   ├── argocd-ingress.yaml   # Wave 0
+│   │   │   │   └── atlantis.yaml         # Wave 1,2
+│   │   │   └── overlays/        # 環境別差分（パス書き換え）
+│   │   │       ├── production/
+│   │   │       │   └── kustomization.yaml
+│   │   │       └── vagrant/
+│   │   │           └── kustomization.yaml
+│   │   │
+│   │   ├── cni/                 # Kubernetesマニフェスト（実リソース）
+│   │   │   └── base/
+│   │   │       ├── kustomization.yaml
+│   │   │       └── kube-flannel.yml
+│   │   ├── metallb/
+│   │   │   ├── base/
+│   │   │   │   ├── kustomization.yaml
+│   │   │   │   └── ip-pool.yaml
+│   │   │   └── overlays/
+│   │   │       ├── production/  # IP: 192.168.1.200-220
+│   │   │       └── vagrant/     # IP: 192.168.56.200-220
+│   │   ├── cert-manager/
+│   │   │   ├── base/
+│   │   │   │   ├── kustomization.yaml
+│   │   │   │   └── cluster-issuer.yaml
+│   │   │   └── overlays/
+│   │   │       ├── production/  # ACME: production
+│   │   │       └── vagrant/     # ACME: staging
+│   │   ├── traefik/
+│   │   │   └── base/
+│   │   │       └── middleware.yaml
+│   │   ├── argocd/
+│   │   │   ├── base/
+│   │   │   │   └── ingress.yaml
+│   │   │   └── overlays/
+│   │   │       ├── production/
+│   │   │       └── vagrant/
+│   │   ├── atlantis/
+│   │   │   ├── base/
+│   │   │   │   └── ingress.yaml
+│   │   │   └── overlays/
+│   │   │       ├── production/
+│   │   │       └── vagrant/
+│   │   └── sealed-secrets/      # （Helm chartなのでマニフェスト不要）
+│   │
+│   └── applications/            # 自作アプリケーション専用
+│       ├── README.md            # アプリケーション追加ガイド
+│       └── _example/            # サンプルアプリケーション構造
 │           ├── base/
+│           │   ├── kustomization.yaml
+│           │   ├── deployment.yaml
+│           │   ├── service.yaml
 │           │   └── ingress.yaml
 │           └── overlays/
 │               ├── production/
@@ -290,7 +307,7 @@ git_revision = "main"
 
 ## よくあるタスク
 
-### 新しいk8s構造での作業（2026-01リファクタリング後）
+### 新しいk8s構造での作業（2026-01リファクタリング v2後）
 
 **ApplicationSetを使った環境別デプロイ:**
 ```bash
@@ -305,27 +322,47 @@ kubectl get app -n argocd | grep infra-
 # 注意: k8s/bootstrap/root.yamlは手動適用禁止（リファレンス用）
 ```
 
-**新しいアプリケーション追加:**
+**インフラコンポーネントの追加:**
 ```bash
-# 1. base定義を作成
-vim k8s/apps/base/my-app.yaml  # sync-wave設定
-vim k8s/apps/base/kustomization.yaml  # リソース追加
+# 1. ArgoCD Application定義を作成
+vim k8s/infrastructure/argocd-apps/base/my-infra.yaml  # sync-wave設定
+vim k8s/infrastructure/argocd-apps/base/kustomization.yaml  # リソース追加
 
-# 2. infraマニフェスト作成
-mkdir -p k8s/infra/my-app/{base,overlays/{production,vagrant}}
-vim k8s/infra/my-app/base/deployment.yaml
-vim k8s/infra/my-app/base/kustomization.yaml
+# 2. Kubernetesマニフェスト作成
+mkdir -p k8s/infrastructure/my-infra/{base,overlays/{production,vagrant}}
+vim k8s/infrastructure/my-infra/base/deployment.yaml
+vim k8s/infrastructure/my-infra/base/kustomization.yaml
 
 # 3. 環境別差分（必要な場合のみ）
-vim k8s/infra/my-app/overlays/production/kustomization.yaml
-vim k8s/infra/my-app/overlays/vagrant/kustomization.yaml
+vim k8s/infrastructure/my-infra/overlays/production/kustomization.yaml
+vim k8s/infrastructure/my-infra/overlays/vagrant/kustomization.yaml
 
 # 4. Application overlayでパッチ
-vim k8s/apps/overlays/production/kustomization.yaml
-vim k8s/apps/overlays/vagrant/kustomization.yaml
+vim k8s/infrastructure/argocd-apps/overlays/production/kustomization.yaml
+vim k8s/infrastructure/argocd-apps/overlays/vagrant/kustomization.yaml
 
 # 5. コミット & push → ArgoCD自動同期
-git add . && git commit -m "Add my-app" && git push
+git add . && git commit -m "Add my-infra" && git push
+```
+
+**自作アプリケーションの追加:**
+```bash
+# 詳細は k8s/applications/README.md を参照
+# サンプル構造: k8s/applications/_example/
+
+# クイックスタート
+APP_NAME="my-app"
+mkdir -p k8s/applications/${APP_NAME}/{base,overlays/{production,vagrant}}
+
+# マニフェスト作成（deployment, service, ingress等）
+vim k8s/applications/${APP_NAME}/base/kustomization.yaml
+vim k8s/applications/${APP_NAME}/base/deployment.yaml
+
+# ArgoCD Application定義を追加
+vim k8s/infrastructure/argocd-apps/base/${APP_NAME}.yaml
+
+# コミット & デプロイ
+git add . && git commit -m "Add ${APP_NAME}" && git push
 ```
 
 ### IP設定変更（新構造対応）
@@ -337,7 +374,7 @@ vim ansible/inventory/inventory.ini        # IPを編集
 vim k8s/bootstrap/values/production.yaml   # metallb.ipRange等を編集
 
 # 3. Kustomize overlaysを編集（必要に応じて）
-vim k8s/infra/metallb/overlays/production/kustomization.yaml
+vim k8s/infrastructure/metallb/overlays/production/kustomization.yaml
 
 # 4. Terraform変数再生成
 make generate-tfvars ENV=production        # Terraform変数再生成

@@ -78,7 +78,7 @@ spec:
       source:
         repoURL: https://github.com/kta/raspi-k8s-cluster.git
         targetRevision: main  # Configured via Terraform: var.git_revision
-        path: k8s/apps/overlays/{{.environment}}
+        path: k8s/infrastructure/argocd-apps/overlays/{{.environment}}
 
       destination:
         server: https://kubernetes.default.svc

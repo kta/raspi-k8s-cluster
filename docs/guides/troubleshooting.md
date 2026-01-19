@@ -33,7 +33,7 @@ interface=eth0
 
 #### 2. Flannelマニフェストの確認
 
-`k8s/infra/cni/kube-flannel.yml` の `args` セクションに `--iface` が含まれていることを確認：
+`k8s/infrastructure/cni/kube-flannel.yml` の `args` セクションに `--iface` が含まれていることを確認：
 
 ```yaml
 containers:
@@ -53,8 +53,8 @@ Flannelは2段階でデプロイされます：
 - マニフェストを直接 `kubectl apply`
 
 **ArgoCD管理後**:
-- `k8s/infra/cni/flannel.yaml` (ArgoCD Application) で管理
-- リポジトリ: `k8s/infra/cni/` ディレクトリ
+- `k8s/infrastructure/cni/flannel.yaml` (ArgoCD Application) で管理
+- リポジトリ: `k8s/infrastructure/cni/` ディレクトリ
 - 自動同期・セルフヒール有効
 
 #### 4. 既存クラスタの修正
@@ -97,7 +97,7 @@ argocd app get cni-flannel
 ### ファイル構成
 
 ```
-k8s/infra/cni/
+k8s/infrastructure/cni/
 ├── flannel.yaml          # ArgoCD Application定義
 ├── kube-flannel.yml      # Flannelマニフェスト (--iface含む)
 └── kustomization.yaml    # Kustomize設定
