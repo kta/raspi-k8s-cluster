@@ -41,10 +41,6 @@ generate-tfvars: ## Ansible インベントリから terraform.auto.tfvars を�
 	@echo "🔄 Terraform変数を生成中 (環境: $(ENVIRONMENT))..."
 	./scripts/generate_tfvars.sh $(ENVIRONMENT)
 
-.PHONY: patch-argocd-apps
-patch-argocd-apps: ## ArgoCD Application マニフェストを環境に合わせて更新
-	@echo "🔄 ArgoCD Applicationを更新中 (環境: $(ENVIRONMENT))..."
-	./scripts/patch_argocd_apps.sh $(ENVIRONMENT)
 
 .PHONY: validate-setup
 validate-setup: ## 環境設定を検証
@@ -93,7 +89,7 @@ ssh-copy-keys: ## SSH公開鍵を各ノードにコピー（初回のみ）
 	@echo "✅ SSH鍵のコピーが完了しました"
 
 .PHONY: ansible-setup
-ansible-setup: generate-tfvars patch-argocd-apps ## 【Phase 1】Ansibleでクラスタをセットアップ（本番環境）
+ansible-setup: generate-tfvars ## 【Phase 1】Ansibleでクラスタをセットアップ（本番環境）
 	@echo "🔧 クラスタをセットアップ中 (環境: $(ENVIRONMENT))..."
 	cd ansible && ansible-playbook -i inventory/inventory.ini site.yml
 
@@ -101,7 +97,6 @@ ansible-setup: generate-tfvars patch-argocd-apps ## 【Phase 1】Ansibleでク�
 ansible-setup-vagrant: ## 【Phase 1】Ansibleでクラスタをセットアップ（Vagrant環境）
 	@echo "🔧 Vagrant環境のクラスタをセットアップ中..."
 	$(MAKE) ENV=vagrant generate-tfvars
-	$(MAKE) ENV=vagrant patch-argocd-apps
 	vagrant up
 	cd ansible && ansible-playbook -i inventory/inventory_vagrant.ini site.yml
 
@@ -199,8 +194,8 @@ terraform-apply-vagrant: ## Vagrant環境でTerraformを適用
 
 .PHONY: argocd-bootstrap
 argocd-bootstrap: ## 【Phase 3】ArgoCD Root App適用（GitOps開始）
-	@echo "🎯 ArgoCD Root Appを適用中..."
-	kubectl apply -f k8s/bootstrap/root-app.yaml
+	@echo "🎯 ArgoCD Root Appを適用中 (環境: $(ENVIRONMENT))..."
+	kubectl apply -f k8s/bootstrap/$(ENVIRONMENT).yaml
 	@echo "✅ GitOps管理を開始しました"
 
 .PHONY: argocd-sync

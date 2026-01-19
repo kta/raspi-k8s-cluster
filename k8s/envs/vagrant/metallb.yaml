@@ -1,0 +1,26 @@
+# =============================================================================
+# MetalLB Configuration - Vagrant Environment
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/kta/raspi-k8s-cluster.git
+    targetRevision: main
+    path: k8s/infra/metallb/overlays/vagrant
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

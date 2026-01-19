@@ -1,0 +1,42 @@
+# =============================================================================
+# Vagrant Environment Bootstrap
+# =============================================================================
+# This is the entry point for the vagrant/development environment.
+# Apply this file to start GitOps management.
+#
+# Usage:
+#   kubectl apply -f k8s/bootstrap/vagrant.yaml
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/kta/raspi-k8s-cluster.git
+    targetRevision: main
+    path: k8s/envs/vagrant
+    directory:
+      recurse: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
