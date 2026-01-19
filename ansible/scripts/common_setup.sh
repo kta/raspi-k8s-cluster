@@ -102,14 +102,12 @@ systemctl mask zramswap.service 2>/dev/null || true
 systemctl mask zram-config.service 2>/dev/null || true
 
 # 確認: スワップが完全に無効化されているか
-if [ "$IS_CI" != "true" ] && grep -q -E '(swap|zram)' /proc/swaps 2>/dev/null; then
+if grep -q -E '(swap|zram)' /proc/swaps 2>/dev/null; then
 	echo "❌ ERROR: Swap is still active after disabling!"
 	cat /proc/swaps
 	echo ">>> This system requires a reboot to fully disable swap."
 	echo ">>> Exiting with code 100 to trigger reboot..."
 	exit 100
-elif [ "$IS_CI" = "true" ] && grep -q -E '(swap|zram)' /proc/swaps 2>/dev/null; then
-	echo "⚠️  CI Environment detected. Ignoring active swap in /proc/swaps (Host swap)."
 fi
 echo "✅ Swap disabled successfully"
 

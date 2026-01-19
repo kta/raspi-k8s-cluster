@@ -61,7 +61,6 @@ provisioner:
   config_options:
     defaults:
       stdout_callback: yaml
-      skip_tags: "reboot,firmware_check"
   inventory:
     group_vars:
       all:
@@ -79,8 +78,6 @@ provisioner:
         #   server k8s-2 pi-node2:6443 check
         # Docker DNSがこれを解決してくれるので、実質的に固定IPと同じ動きをします。
         node_ips: "pi-node1,pi-node2,pi-node3"
-        # CI環境判定用フラグ
-        is_ci_environment: true
     host_vars:
       pi-node1:
         priority: 101

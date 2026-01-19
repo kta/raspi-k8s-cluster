@@ -9,19 +9,16 @@
     - name: Wait for dpkg lock before update
       shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
       changed_when: false
-      when: not is_ci_environment | default(false)
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
-      when: not is_ci_environment | default(false)
     - name: Upgrade all packages
       apt:
         upgrade: dist
         autoremove: yes
         autoclean: yes
       register: apt_upgrade_result
-      when: not is_ci_environment | default(false)
     - name: Check if reboot is required after upgrade
       stat:
         path: /var/run/reboot-required
@@ -30,10 +27,7 @@
       reboot:
         reboot_timeout: 300
         msg: "Rebooting after package upgrade"
-      when:
-        - reboot_required_file.stat.exists
-        - not is_ci_environment | default(false)
-      tags: [reboot]
+      when: reboot_required_file.stat.exists
     # --- 共通セットアップスクリプト実行 ---
     - name: Copy common script
       copy:
@@ -43,13 +37,10 @@
     - name: Wait for dpkg lock to be released
       shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
       changed_when: false
-      when: not is_ci_environment | default(false)
     - name: Run common setup
       shell: >
         /tmp/common_setup.sh {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
 
-      environment:
-        IS_CI: "{{ is_ci_environment | default(false) | lower }}"
       changed_when: true
       register: common_setup_result
       failed_when: common_setup_result.rc not in [0, 100]
@@ -57,28 +48,19 @@
       reboot:
         reboot_timeout: 300
         msg: "Rebooting to apply cgroup memory parameters"
-      when:
-        - common_setup_result.rc == 100
-        - not is_ci_environment | default(false)
-      tags: [reboot]
+      when: common_setup_result.rc == 100
     - name: Re-copy common script after reboot
       copy:
         src: "{{ playbook_dir }}/scripts/common_setup.sh"
         dest: /tmp/common_setup.sh
         mode: '0755'
-      when:
-        - common_setup_result.rc == 100
-        - not is_ci_environment | default(false)
+      when: common_setup_result.rc == 100
     - name: Re-run common setup after reboot
       shell: >
         /tmp/common_setup.sh {{ vip }} {{ interface }} {{ priority }} {{ state }} {{ haproxy_port }} {{ node_ips }} {{ k8s_version }}
 
-      environment:
-        IS_CI: "{{ is_ci_environment | default(false) | lower }}"
       changed_when: true
-      when:
-        - common_setup_result.rc == 100
-        - not is_ci_environment | default(false)
+      when: common_setup_result.rc == 100
 # ==============================================================================
 # Primary Master: Init実行とJoinトークン生成
 # ==============================================================================
@@ -99,14 +81,12 @@
         src: "{{ playbook_dir }}/../k8s/infra/cni/kube-flannel.yml"
         dest: "/tmp/kube-flannel.yml"
         mode: '0644'
-      when: not is_ci_environment | default(false)
     - name: Run init script (Create Cluster & Generate Token File)
       shell: /tmp/primary_init.sh {{ vip }} {{ haproxy_port }} {{ interface }}
       changed_when: true
     - name: Setup CNI on primary master
       shell: /tmp/cni_setup.sh
       changed_when: true
-      when: not is_ci_environment | default(false)
     - name: Wait for control plane to be ready
       shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes
       register: control_plane_check
@@ -114,7 +94,6 @@
       retries: 30
       delay: 10
       changed_when: false
-      when: not is_ci_environment | default(false)
     - name: Read Join Command from file
       slurp:
         src: /tmp/k8s_join_command.sh
@@ -161,7 +140,6 @@
       retries: 30
       delay: 10
       changed_when: false
-      when: not is_ci_environment | default(false)
     - name: Wait for etcd pod to be running
       shell: >
         kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get pod -l component=etcd,tier=control-plane -o jsonpath='{.items[?(@.spec.nodeName=="{{ inventory_hostname }}")].status.phase}'
@@ -171,16 +149,12 @@
       retries: 30
       delay: 10
       changed_when: false
-      when: not is_ci_environment | default(false)
     - name: Wait additional time for etcd to stabilize
       pause:
         seconds: 20
       changed_when: false
-      when: not is_ci_environment | default(false)
     - name: Wait for etcd to sync before next node
       pause:
         seconds: 60
         prompt: "Waiting for etcd cluster to fully sync..."
-      when:
-        - inventory_hostname != groups['secondary_masters'][-1]
-        - not is_ci_environment | default(false)
+      when: inventory_hostname != groups['secondary_masters'][-1]
