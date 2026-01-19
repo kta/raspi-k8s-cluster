@@ -43,12 +43,6 @@ docs/
 ├── development/                 # 開発者向けドキュメント
 │   ├── ci-setup.md              # CI/CD設定
 │   └── molecule-testing.md      # テスト方法
-└── archived/                    # 古いドキュメント（参照用）
-    ├── IMPLEMENTATION_SUMMARY.md
-    ├── FINAL_SUMMARY.md
-    ├── DNS_FREE_ACCESS.md
-    ├── environment_ip_management.md
-    └── ...
 ```
 
 ---

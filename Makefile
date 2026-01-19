@@ -203,16 +203,9 @@ argocd-bootstrap: ## 【Phase 3】ArgoCD ApplicationSet適用（GitOps開始）
 	@echo "  kubectl get appset -n argocd"
 	@echo "  kubectl get app -n argocd | grep infra-"
 
-.PHONY: argocd-bootstrap-legacy
-argocd-bootstrap-legacy: ## [非推奨] 旧方式のbootstrap（環境別指定）
-	@echo "⚠️  警告: この方法は非推奨です。代わりに 'make argocd-bootstrap' を使用してください"
-	@echo "🎯 旧方式でArgoCD Appを適用中 (環境: $(ENVIRONMENT))..."
-	kubectl apply -f k8s/bootstrap/$(ENVIRONMENT).yaml
-	@echo "✅ GitOps管理を開始しました"
-
 .PHONY: argocd-sync
 argocd-sync: ## すべてのArgoCD Appを同期
-	argocd app sync --async --prune --self-heal -l app.kubernetes.io/instance=root
+	argocd app sync --async --prune -l app.kubernetes.io/instance=root
 
 .PHONY: argocd-status
 argocd-status: ## ArgoCD Appのステータスを表示

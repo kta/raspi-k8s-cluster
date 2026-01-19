@@ -31,9 +31,6 @@ k8s/
 ```bash
 # Apply the root ApplicationSet (discovers all environments)
 kubectl apply -f k8s/bootstrap/root.yaml
-
-# Or use legacy single-environment bootstrap (deprecated)
-kubectl apply -f k8s/bootstrap/production.yaml
 ```
 
 The ApplicationSet will:
@@ -141,18 +138,6 @@ git push
 - MetalLB: `192.168.56.200-192.168.56.220`
 - Ingress IP: `192.168.56.200`
 - ACME: Let's Encrypt Staging
-
-## 🧹 Migration from Old Structure
-
-The old structure is deprecated but kept for reference:
-- `envs/production/*.yaml` - Old individual Application files (deprecated)
-- `envs/vagrant/*.yaml` - Old individual Application files (deprecated)
-
-**To migrate**:
-1. Apply new bootstrap: `kubectl apply -f k8s/bootstrap/root.yaml`
-2. Verify all apps are synced: `kubectl get app -n argocd`
-3. Delete old bootstrap: `kubectl delete -f k8s/bootstrap/production.yaml`
-4. Clean up old files: `rm -rf k8s/envs/`
 
 ## 📚 Additional Resources
 

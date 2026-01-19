@@ -5,13 +5,10 @@
 ```
 k8s/
 ├── 📖 README.md                      # Main documentation
-├── 📖 MIGRATION.md                   # Migration guide from old structure
 ├── 📖 STRUCTURE.md                   # This file
 │
 ├── 🚀 bootstrap/                     # Entry Points
 │   ├── root.yaml                     # ⭐ Main entry: ApplicationSet
-│   ├── production.yaml               # Legacy: direct production bootstrap
-│   ├── vagrant.yaml                  # Legacy: direct vagrant bootstrap
 │   └── values/                       # Environment parameters
 │       ├── production.yaml           # Production config (IPs, domains, etc.)
 │       └── vagrant.yaml              # Vagrant config
@@ -163,17 +160,8 @@ Only these values differ between production and vagrant:
 
 Everything else is identical across environments.
 
-## 🧹 Archived Files
-
-Old structure moved to `.archived/`:
-- `envs/production/*.yaml` - Old numbered Application files
-- `envs/vagrant/*.yaml` - Old numbered Application files
-
-Can be safely deleted after migration verification.
-
 ## 📚 Learn More
 
 - [README.md](README.md) - Usage and quick start
-- [MIGRATION.md](MIGRATION.md) - Migration guide
 - [ArgoCD Docs](https://argo-cd.readthedocs.io/)
 - [Kustomize Docs](https://kubectl.docs.kubernetes.io/)

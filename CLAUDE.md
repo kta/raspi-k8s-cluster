@@ -147,7 +147,6 @@ raspi-k8s-cluster/
 │   ├── development/             # 開発者向け
 │   │   ├── ci-setup.md
 │   │   └── molecule-testing.md
-│   └── archived/                # 古いドキュメント
 ├── ansible/                     # Phase 1: クラスタ構築
 │   ├── inventory/
 │   │   ├── inventory.ini        # 本番環境
@@ -180,9 +179,7 @@ raspi-k8s-cluster/
 │   └── MIGRATION.md             # マイグレーションガイド
 ├── k8s/                         # Phase 3: GitOps管理リソース
 │   ├── bootstrap/               # エントリーポイント
-│   │   ├── root.yaml            # ⭐ ApplicationSet（推奨）
-│   │   ├── production.yaml      # Legacy bootstrap
-│   │   ├── vagrant.yaml         # Legacy bootstrap
+│   │   ├── root.yaml            # ⭐ ApplicationSet
 │   │   └── values/              # 環境パラメータ
 │   │       ├── production.yaml  # Production設定（IP、ドメイン等）
 │   │       └── vagrant.yaml     # Vagrant設定（IP、ドメイン等）
@@ -269,9 +266,6 @@ kubectl apply -f k8s/bootstrap/root.yaml
 # 確認
 kubectl get appset -n argocd
 kubectl get app -n argocd | grep infra-
-
-# Legacy方式（非推奨）
-kubectl apply -f k8s/bootstrap/production.yaml
 ```
 
 **新しいアプリケーション追加:**

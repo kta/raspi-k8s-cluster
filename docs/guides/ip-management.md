@@ -446,19 +446,7 @@ kubectl get ipaddresspool -n metallb-system -o yaml
 kubectl get svc -n traefik traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
-## 📊 比較表
-
-| 項目 | 旧構造 | 新構造（2026-01） |
-|------|--------|------------------|
-| **エントリーポイント** | `k8s/bootstrap/{env}.yaml` | `k8s/bootstrap/root.yaml` (ApplicationSet) |
-| **環境パラメータ** | Application内にハードコード | `k8s/bootstrap/values/*.yaml` |
-| **Application定義** | `k8s/envs/{env}/01-*.yaml` | `k8s/apps/base/*.yaml` + overlays |
-| **環境差分** | ファイル全体を複製 | Kustomize patchesのみ |
-| **依存順序** | ファイル名プレフィックス | sync-waveアノテーション |
-| **手動パッチング** | `patch_argocd_apps.sh` 必要 | 不要（完全自動） |
-| **新環境追加** | 全ファイルコピー | values/*.yaml のみ追加 |
-
-## 🎯 ベストプラクティス
+## 🏆 ベストプラクティス
 
 1. **単一真実の源**: すべてのIPはAnsibleインベントリで管理
 2. **自動同期**: ApplicationSetのauto-sync機能を有効化

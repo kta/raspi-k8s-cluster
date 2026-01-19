@@ -56,8 +56,6 @@ raspi-k8s-cluster/
 └── k8s/                         # 【Phase 3: GitOps管理リソース】
     ├── bootstrap/
     │   ├── root.yaml            # ⭐ ApplicationSet（全環境対応）
-    │   ├── production.yaml      # Legacy: 環境別bootstrap
-    │   ├── vagrant.yaml         # Legacy: 環境別bootstrap
     │   └── values/              # 環境パラメータ
     │       ├── production.yaml  # Production設定
     │       └── vagrant.yaml     # Vagrant設定
