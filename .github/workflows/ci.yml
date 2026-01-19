@@ -39,18 +39,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible-lint yamllint
 
-      # - name: Run yamllint
-      #   run: yamllint -c .yamllint ansible/
+      - name: Run yamllint
+        run: yamllint -c .yamllint ansible/
 
-      # - name: Run ansible-lint
-      #   run: |
-      #     cd ansible
-      #     ansible-lint site.yml verify.yml reset.yml upgrade.yml
+      - name: Run ansible-lint
+        run: |
+          cd ansible
+          ansible-lint site.yml verify.yml reset.yml upgrade.yml
 
-      # - name: Install shellcheck
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y shellcheck
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
 
       - name: Run shellcheck on scripts
         run: |

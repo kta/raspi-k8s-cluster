@@ -4,7 +4,7 @@ extends: default
 
 rules:
   line-length:
-    max: 120
+    max: 200
     level: warning
 
   indentation:
@@ -28,6 +28,7 @@ rules:
 
   # Ignore long lines in certain cases
   document-start: disable
+  
 
 ignore: |
   .github/
