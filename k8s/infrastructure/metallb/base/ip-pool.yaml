@@ -22,3 +22,5 @@ metadata:
 spec:
   ipAddressPools:
     - default
+  interfaces:
+    - eth1  # Vagrant uses eth1 for private network

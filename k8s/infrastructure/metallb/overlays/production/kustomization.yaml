@@ -14,3 +14,12 @@ patches:
       - op: replace
         path: /spec/addresses/0
         value: "192.168.1.200-192.168.1.220"
+  
+  # Override interface for production (Raspberry Pi uses eth0)
+  - target:
+      kind: L2Advertisement
+      name: default
+    patch: |-
+      - op: replace
+        path: /spec/interfaces/0
+        value: "eth0"
