@@ -155,6 +155,16 @@ terraform-apply: ## 【Phase 2】Terraform適用（ArgoCDインストール）
 		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
 	fi
 	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT))..."
+	@echo "📦 ステージ1: ArgoCDインストール（CRDセットアップ）"
+	cd terraform/environments/$(ENVIRONMENT) && \
+		terraform apply -target=module.argocd.kubernetes_namespace_v1.this \
+		                -target=module.argocd.helm_release.this \
+		                -target=module.argocd.null_resource.wait_for_argocd_crds \
+		                -target=module.argocd.kubernetes_config_map_v1.environment_config \
+		                -target=module.sealed_secrets \
+		                -target=module.atlantis_secrets
+	@echo "✅ ステージ1完了。ArgoCD CRDが利用可能になりました"
+	@echo "📦 ステージ2: ApplicationSetデプロイ"
 	cd terraform/environments/$(ENVIRONMENT) && terraform apply
 
 .PHONY: terraform-apply-auto-approve
@@ -164,6 +174,17 @@ terraform-apply-auto-approve: ## Terraform適用（自動承認）
 		$(MAKE) generate-tfvars ENV=$(ENVIRONMENT); \
 	fi
 	@echo "🚀 Terraformを適用中 (環境: $(ENVIRONMENT)) [自動承認]..."
+	@echo "📦 ステージ1: ArgoCDインストール（CRDセットアップ）"
+	cd terraform/environments/$(ENVIRONMENT) && \
+		terraform apply -auto-approve \
+		                -target=module.argocd.kubernetes_namespace_v1.this \
+		                -target=module.argocd.helm_release.this \
+		                -target=module.argocd.null_resource.wait_for_argocd_crds \
+		                -target=module.argocd.kubernetes_config_map_v1.environment_config \
+		                -target=module.sealed_secrets \
+		                -target=module.atlantis_secrets
+	@echo "✅ ステージ1完了。ArgoCD CRDが利用可能になりました"
+	@echo "📦 ステージ2: ApplicationSetデプロイ"
 	cd terraform/environments/$(ENVIRONMENT) && terraform apply -auto-approve
 
 .PHONY: terraform-destroy

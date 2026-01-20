@@ -53,6 +53,7 @@ resource "helm_release" "this" {
   ]
 
   wait             = true
+  wait_for_jobs    = true
   timeout          = var.timeout
   create_namespace = false
 

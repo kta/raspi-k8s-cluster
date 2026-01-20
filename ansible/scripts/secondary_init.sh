@@ -5,6 +5,13 @@ JOIN_CMD="$1"
 VIP="$2"
 INTERFACE="$3"
 
+# Error handler - create marker file with error status
+error_handler() {
+	echo "ERROR: Script failed at line $1" | tee /tmp/secondary_init.done
+	exit 1
+}
+trap 'error_handler ${LINENO}' ERR
+
 echo ">>> Starting Secondary Master Init..."
 echo ">>> VIP: ${VIP}"
 echo ">>> INTERFACE: ${INTERFACE}"
@@ -120,3 +127,6 @@ echo "Removing control-plane taint to allow pod scheduling..."
 kubectl --kubeconfig=/etc/kubernetes/admin.conf taint nodes "$(hostname)" node-role.kubernetes.io/control-plane- || true
 
 echo ">>> Secondary Master Init Complete!"
+
+# Create completion marker file
+echo "SUCCESS" > /tmp/secondary_init.done

@@ -126,11 +126,31 @@
         src: "{{ playbook_dir }}/scripts/secondary_init.sh"
         dest: /tmp/secondary_init.sh
         mode: '0755'
-    - name: Run secondary init script
-      shell: /tmp/secondary_init.sh "{{ join_cmd }}" "{{ vip }}" "{{ interface }}"
+    - name: Remove old completion marker
+      file:
+        path: /tmp/secondary_init.done
+        state: absent
+    - name: Run secondary init script in background
+      shell: >
+        nohup /tmp/secondary_init.sh "{{ join_cmd }}" "{{ vip }}" "{{ interface }}" > /tmp/secondary_init.log 2>&1 &
       changed_when: true
-      async: 600
-      poll: 10
+    - name: Wait for SSH connection to recover (kubeadm join may disrupt network)
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+    - name: Wait for secondary init script to complete
+      wait_for:
+        path: /tmp/secondary_init.done
+        timeout: 600
+        msg: "Secondary init script did not complete within 600 seconds"
+    - name: Check secondary init script result
+      slurp:
+        src: /tmp/secondary_init.done
+      register: init_result
+    - name: Fail if secondary init script failed
+      fail:
+        msg: "Secondary init script failed: {{ init_result['content'] | b64decode }}"
+      when: "'ERROR' in (init_result['content'] | b64decode)"
     - name: Wait for node to be ready
       shell: >
         kubectl --kubeconfig=/etc/kubernetes/admin.conf get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
