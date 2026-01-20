@@ -13,7 +13,10 @@ patches:
     patch: |-
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: "atlantis.raspi.local"
+        value: "atlantis.vagrant.local"
       - op: replace
         path: /spec/rules/0/host
-        value: "atlantis.raspi.local"
+        value: "atlantis.vagrant.local"
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: "ca-issuer"

@@ -1,0 +1,10 @@
+# =============================================================================
+# cert-manager Resources - Base
+# =============================================================================
+# Additional cert-manager resources like CA Issuer for local development
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ca-issuer.yaml

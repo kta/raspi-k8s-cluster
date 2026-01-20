@@ -12,6 +12,9 @@ Raspberry Pi Kubernetesクラスタプロジェクトのドキュメント集で
 ### [🌐 環境別IP管理](./guides/ip-management.md)
 production/vagrant環境で異なるIPアドレスを自動管理する仕組み。
 
+### [🔒 HTTPSセットアップ](./guides/https-setup.md)
+ローカル環境でHTTPS通信を実現する方法。自己署名CA証明書の生成と管理。
+
 ### [🔗 サービスアクセス](./guides/service-access.md)
 ArgoCD/Atlantisに `/etc/hosts` なしでアクセスする3つの方法。
 
@@ -38,6 +41,7 @@ docs/
 ├── guides/                      # ユーザーガイド
 │   ├── quickstart.md            # クイックスタート
 │   ├── ip-management.md         # IP管理ガイド
+│   ├── https-setup.md           # HTTPSセットアップ
 │   ├── service-access.md        # サービスアクセスガイド
 │   └── troubleshooting.md       # トラブルシューティング
 ├── development/                 # 開発者向けドキュメント
@@ -54,6 +58,9 @@ docs/
 
 ### IPアドレスを変更したい
 → [IP管理ガイド](./guides/ip-management.md#ip設定変更手順)を参照
+
+### HTTPSでアクセスしたい
+→ [HTTPSセットアップガイド](./guides/https-setup.md#クイックスタート)を参照
 
 ### ArgoCDにアクセスできない
 → [サービスアクセスガイド](./guides/service-access.md#方法1-kubectl-port-forward最も簡単)を参照
@@ -83,6 +90,13 @@ docs/
 ---
 
 ## 🔄 ドキュメント更新履歴
+
+### 2026-01-20
+- **HTTPSセットアップガイド追加**
+  - 自己署名CA証明書の生成と管理
+  - cert-manager CA Issuer統合
+  - Vagrant環境でのローカルHTTPS実現
+  - `make setup-https` による完全自動化
 
 ### 2026-01-19
 - **k8s構造の全面リファクタリング反映**

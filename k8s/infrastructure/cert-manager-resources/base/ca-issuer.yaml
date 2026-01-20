@@ -1,0 +1,18 @@
+# =============================================================================
+# Self-Signed CA ClusterIssuer
+# =============================================================================
+# This ClusterIssuer uses a self-signed CA certificate to issue certificates
+# for local development environments (*.raspi.local).
+#
+# Prerequisites:
+#   1. Generate CA certificate: scripts/generate_ca_cert.sh
+#   2. Apply CA Secret: kubectl apply -f certs/ca-secret.yaml
+#   3. Apply this ClusterIssuer
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: ca-issuer
+spec:
+  ca:
+    secretName: ca-key-pair

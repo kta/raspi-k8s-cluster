@@ -72,6 +72,42 @@ setup-local-dns: ## dnsmasq でローカルDNSを設定（要 sudo）
 	@echo "🔧 ローカルDNSを設定中 (環境: $(ENVIRONMENT))..."
 	./scripts/setup_local_dns.sh $(ENVIRONMENT)
 
+.PHONY: generate-ca
+generate-ca: ## 自己署名CA証明書を生成（ローカル開発用）
+	@echo "🔐 CA証明書を生成中 (環境: $(ENVIRONMENT))..."
+	./scripts/generate_ca_cert.sh certs $(ENVIRONMENT)
+
+.PHONY: install-ca
+install-ca: ## CA証明書をKubernetesクラスターにインストール
+	@echo "📦 CA証明書をKubernetesにインストール中..."
+	@if [ ! -f certs/ca-secret.yaml ]; then \
+		echo "❌ CA証明書が見つかりません。まず 'make generate-ca ENV=$(ENVIRONMENT)' を実行してください"; \
+		exit 1; \
+	fi
+	kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -f certs/ca-secret.yaml
+	@echo "✅ CA証明書がインストールされました"
+
+.PHONY: trust-ca
+trust-ca: ## CA証明書をブラウザ/システムで信頼（要 sudo）
+	@echo "🔒 CA証明書を信頼設定中 (環境: $(ENVIRONMENT))..."
+	./scripts/trust_ca_cert.sh certs/ca.crt $(ENVIRONMENT)
+
+.PHONY: setup-https
+setup-https: generate-ca install-ca trust-ca ## HTTPSセットアップ完全自動化（CA生成→インストール→信頼）
+	@echo "✅ HTTPSセットアップが完了しました！"
+	@echo ""
+	@echo "🌐 以下のURLにHTTPSでアクセス可能です:"
+	@if [ "$(ENVIRONMENT)" = "vagrant" ]; then \
+		echo "  https://argocd.vagrant.local"; \
+		echo "  https://atlantis.vagrant.local"; \
+	else \
+		echo "  https://argocd.raspi.local"; \
+		echo "  https://atlantis.raspi.local"; \
+	fi
+	@echo ""
+	@echo "⚠️  まだDNSを設定していない場合は 'make setup-local-dns ENV=$(ENVIRONMENT)' を実行してください"
+
 .PHONY: show-ingress-urls
 show-ingress-urls: ## nip.io/sslip.io を使ったIngress URLを表示
 	./scripts/generate_ingress_urls.sh $(ENVIRONMENT)

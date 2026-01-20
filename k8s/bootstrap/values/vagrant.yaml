@@ -15,18 +15,18 @@ metallb:
   
 ingress:
   ip: 192.168.56.200
-  domain: raspi.local
+  domain: vagrant.local
 
 # ArgoCD Configuration
 argocd:
-  hostname: argocd.raspi.local
+  hostname: argocd.vagrant.local
 
 # Atlantis Configuration
 atlantis:
-  hostname: atlantis.raspi.local
+  hostname: atlantis.vagrant.local
   orgAllowlist: github.com/kta/*
 
 # Cert-Manager Configuration
 certManager:
-  email: admin@raspi.local
+  email: admin@vagrant.local
   acmeServer: https://acme-staging-v02.api.letsencrypt.org/directory  # Staging for dev

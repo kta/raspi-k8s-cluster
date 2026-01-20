@@ -28,7 +28,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infrastructure/cert-manager/overlays/vagrant
+        value: k8s/infrastructure/cert-manager-resources/overlays/vagrant
 
   # Traefik - vagrant LoadBalancer IP
   - target:

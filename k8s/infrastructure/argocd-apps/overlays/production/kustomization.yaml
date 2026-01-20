@@ -28,7 +28,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/source/path
-        value: k8s/infrastructure/cert-manager/overlays/production
+        value: k8s/infrastructure/cert-manager-resources/overlays/production
 
   # Traefik - production LoadBalancer IP
   - target:
