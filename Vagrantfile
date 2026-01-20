@@ -22,9 +22,15 @@ Vagrant.configure("2") do |config|
   config.vm.define "vm-node1" do |node|
     node.vm.hostname = "vm-node1"
     node.vm.network "private_network", ip: "192.168.56.101", nic_type: "virtio"
+    
     # ArgoCD NodePort forwarding
     node.vm.network "forwarded_port", guest: 30080, host: 30080, host_ip: "127.0.0.1"
     node.vm.network "forwarded_port", guest: 30443, host: 30443, host_ip: "127.0.0.1"
+    
+    # Monitoring stack NodePort forwarding
+    node.vm.network "forwarded_port", guest: 30300, host: 3000, host_ip: "127.0.0.1"   # Grafana
+    node.vm.network "forwarded_port", guest: 30900, host: 9090, host_ip: "127.0.0.1"   # Prometheus
+    node.vm.network "forwarded_port", guest: 30093, host: 9093, host_ip: "127.0.0.1"   # Alertmanager
   end
 
   # --- Node 2 ---

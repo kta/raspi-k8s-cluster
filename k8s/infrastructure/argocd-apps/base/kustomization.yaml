@@ -28,3 +28,5 @@ resources:
   - traefik.yaml
   - argocd-ingress.yaml
   - atlantis.yaml
+  - kube-prometheus-stack.yaml
+  - monitoring-nodeports.yaml

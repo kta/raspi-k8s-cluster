@@ -30,3 +30,11 @@ atlantis:
 certManager:
   email: admin@raspi.local
   acmeServer: https://acme-v02.api.letsencrypt.org/directory
+
+# Monitoring Configuration
+grafana:
+  hostname: grafana.raspi.local
+
+prometheus:
+  retention: 15d
+  storageSize: 15Gi

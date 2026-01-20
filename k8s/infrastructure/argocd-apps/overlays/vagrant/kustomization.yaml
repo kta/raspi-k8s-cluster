@@ -65,3 +65,12 @@ patches:
       - op: replace
         path: /spec/source/path
         value: k8s/infrastructure/traefik/overlays/vagrant
+
+  # Grafana Ingress - vagrant overlay path
+  - target:
+      kind: Application
+      name: grafana-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/grafana/overlays/vagrant

@@ -63,6 +63,14 @@ port-forward-atlantis: ## Atlantis にポートフォワード (http://localhost
 port-forward-traefik: ## Traefik にポートフォワード (http://localhost:9000)
 	./scripts/port_forward_services.sh traefik
 
+.PHONY: port-forward-grafana
+port-forward-grafana: ## Grafana にポートフォワード (http://localhost:3000)
+	./scripts/port_forward_services.sh grafana
+
+.PHONY: port-forward-prometheus
+port-forward-prometheus: ## Prometheus にポートフォワード (http://localhost:9090)
+	./scripts/port_forward_services.sh prometheus
+
 .PHONY: port-forward-all
 port-forward-all: ## 全サービスにポートフォワード
 	./scripts/port_forward_services.sh all

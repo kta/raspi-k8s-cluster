@@ -30,3 +30,11 @@ atlantis:
 certManager:
   email: admin@vagrant.local
   acmeServer: https://acme-staging-v02.api.letsencrypt.org/directory  # Staging for dev
+
+# Monitoring Configuration
+grafana:
+  hostname: grafana.vagrant.local
+
+prometheus:
+  retention: 15d
+  storageSize: 15Gi

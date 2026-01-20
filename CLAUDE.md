@@ -45,6 +45,8 @@ make ansible-upgrade              # アップグレード
 ```bash
 make port-forward-all             # 全サービスにポートフォワード
 make port-forward-argocd          # ArgoCDアクセス
+make port-forward-grafana         # Grafanaアクセス
+make port-forward-prometheus      # Prometheusアクセス
 make show-ingress-urls            # Ingress URL表示
 make setup-local-dns              # ローカルDNS設定
 ```
@@ -124,6 +126,8 @@ ArgoCD Applications
 | 0 | argocd-ingress | ArgoCD UI | infrastructure/ |
 | 1 | atlantis | Terraform自動化 | infrastructure/ |
 | 2 | atlantis-ingress | Atlantis webhook | infrastructure/ |
+| 3 | kube-prometheus-stack | 監視スタック（Prometheus+Grafana） | infrastructure/ |
+| 4 | grafana-ingress | Grafana UI | infrastructure/ |
 | **10+** | **自作アプリ** | **ユーザーアプリケーション** | **applications/** |
 
 ### 高可用性セットアップ
@@ -145,6 +149,7 @@ raspi-k8s-cluster/
 │   │   ├── quickstart.md        # クイックスタート
 │   │   ├── ip-management.md     # IP管理ガイド
 │   │   ├── service-access.md    # サービスアクセス
+│   │   ├── monitoring.md        # 監視ガイド（Prometheus+Grafana）
 │   │   └── troubleshooting.md   # トラブルシューティング
 │   ├── development/             # 開発者向け
 │   │   ├── ci-setup.md
@@ -197,7 +202,8 @@ raspi-k8s-cluster/
 │   │   │   │   ├── cert-manager-resources.yaml # Wave -5
 │   │   │   │   ├── traefik.yaml          # Wave -4,-3
 │   │   │   │   ├── argocd-ingress.yaml   # Wave 0
-│   │   │   │   └── atlantis.yaml         # Wave 1,2
+│   │   │   │   ├── atlantis.yaml         # Wave 1,2
+│   │   │   │   └── kube-prometheus-stack.yaml # Wave 3,4
 │   │   │   └── overlays/        # 環境別差分（パス書き換え）
 │   │   │       ├── production/
 │   │   │       │   └── kustomization.yaml

@@ -6,6 +6,7 @@ Raspberry Pi上にKubernetesクラスタを構築し、GitOpsで完全自動化�
 
 - **高可用性**: 3ノードのコントロールプレーン + Keepalived VIP
 - **GitOps管理**: ArgoCD による宣言的インフラ管理
+- **包括的監視**: Prometheus + Grafana による完全なクラスタ可視化
 - **環境別IP自動管理**: production/vagrant環境の自動切り替え
 - **簡単なサービスアクセス**: `/etc/hosts` 編集不要
 - **完全自動化**: ワンコマンドでゼロから本番環境構築
@@ -119,7 +120,12 @@ make setup-all-vagrant
 # 2. 動作確認
 make status
 
-# 3. 環境破棄
+# 3. サービスアクセス（直接アクセス可能）
+# http://localhost:30080  (ArgoCD)
+# http://localhost:3000   (Grafana)
+# http://localhost:9090   (Prometheus)
+
+# 4. 環境破棄
 make vagrant-destroy
 ```
 
@@ -146,6 +152,7 @@ make status
 | | `make setup-all-vagrant` | 全フェーズ自動実行（Vagrant）|
 | **アクセス** | `make port-forward-all` | 全サービスにポートフォワード |
 | | `make port-forward-argocd` | ArgoCD にアクセス |
+| | `make port-forward-grafana` | Grafana にアクセス |
 | | `make show-ingress-urls` | Ingress URLを表示 |
 | **管理** | `make ansible-verify` | クラスタを検証 |
 | | `make ansible-reset` | クラスタをリセット |
@@ -180,15 +187,44 @@ make env-info ENV=production
 ```bash
 # 方法1: port-forward（最も簡単）
 make port-forward-argocd    # http://localhost:8080
+make port-forward-grafana   # http://localhost:3000
+make port-forward-prometheus # http://localhost:9090
 
 # 方法2: nip.io（DNS不要）
 make show-ingress-urls      # http://argocd-192-168-1-200.nip.io
 
 # 方法3: dnsmasq（本番に近い）
-make setup-local-dns        # http://argocd.local
+make setup-local-dns        # https://argocd.raspi.local
+                            # https://grafana.raspi.local
 ```
 
 📖 **詳細は [サービスアクセスガイド](./docs/guides/service-access.md) を参照**
+
+## 📊 監視スタック
+
+Prometheus + Grafana による包括的なクラスタ監視：
+
+```bash
+# Grafana ダッシュボード
+make port-forward-grafana
+# http://localhost:3000
+
+# Prometheus メトリクス
+make port-forward-prometheus
+# http://localhost:9090
+
+# 初回ログイン
+# ユーザー名: admin
+# パスワード: admin
+```
+
+**デフォルトダッシュボード:**
+- Kubernetes クラスタ全体の概要
+- ノード別メトリクス（CPU、メモリ、ディスク）
+- Pod/コンテナリソース使用状況
+- ArgoCD & Traefik メトリクス
+
+📖 **詳細は [監視ガイド](./docs/guides/monitoring.md) を参照**
 
 ## 🛠️ トラブルシューティング
 
@@ -208,6 +244,7 @@ make setup-local-dns        # http://argocd.local
 - 🚀 [クイックスタート](./docs/guides/quickstart.md) - 最短セットアップ手順
 - 🌐 [IP管理ガイド](./docs/guides/ip-management.md) - 環境別IP設定
 - 🔗 [サービスアクセス](./docs/guides/service-access.md) - ArgoCD/Atlantis アクセス方法
+- 📊 [監視ガイド](./docs/guides/monitoring.md) - Prometheus & Grafana 使い方
 - 🛠️ [トラブルシューティング](./docs/guides/troubleshooting.md) - 問題解決集
 - ☸️ [k8s構造ガイド](./k8s/README.md) - GitOps構造の詳細説明
 

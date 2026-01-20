@@ -8,6 +8,8 @@
 #   ./port_forward_services.sh argocd
 #   ./port_forward_services.sh atlantis
 #   ./port_forward_services.sh traefik
+#   ./port_forward_services.sh grafana
+#   ./port_forward_services.sh prometheus
 #   ./port_forward_services.sh all
 
 set -euo pipefail
@@ -44,13 +46,30 @@ forward_traefik() {
 	kubectl port-forward -n traefik svc/traefik 9000:9000
 }
 
+forward_grafana() {
+	echo -e "${CYAN}🚀 Grafana にポートフォワード中...${NC}"
+	echo -e "${GREEN}✓${NC} http://localhost:3000 でアクセス可能"
+	echo -e "${YELLOW}初期ログイン:${NC} admin / admin"
+	echo ""
+	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+}
+
+forward_prometheus() {
+	echo -e "${CYAN}🚀 Prometheus にポートフォワード中...${NC}"
+	echo -e "${GREEN}✓${NC} http://localhost:9090 でアクセス可能"
+	echo ""
+	kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090
+}
+
 forward_all() {
 	echo -e "${CYAN}🚀 全サービスにポートフォワード中...${NC}"
 	echo ""
 	echo "以下のポートでアクセス可能になります:"
-	echo -e "  ${GREEN}ArgoCD:${NC}    http://localhost:8080"
-	echo -e "  ${GREEN}Atlantis:${NC}  http://localhost:4141"
-	echo -e "  ${GREEN}Traefik:${NC}   http://localhost:9000"
+	echo -e "  ${GREEN}ArgoCD:${NC}      http://localhost:8080"
+	echo -e "  ${GREEN}Atlantis:${NC}    http://localhost:4141"
+	echo -e "  ${GREEN}Traefik:${NC}     http://localhost:9000"
+	echo -e "  ${GREEN}Grafana:${NC}     http://localhost:3000"
+	echo -e "  ${GREEN}Prometheus:${NC}  http://localhost:9090"
 	echo ""
 	echo -e "${YELLOW}注意: Ctrl+C で停止します${NC}"
 	echo ""
@@ -65,11 +84,17 @@ forward_all() {
 	kubectl port-forward -n traefik svc/traefik 9000:9000 &
 	PID_TRAEFIK=$!
 
+	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80 &
+	PID_GRAFANA=$!
+
+	kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 &
+	PID_PROMETHEUS=$!
+
 	# クリーンアップハンドラー
 	cleanup() {
 		echo ""
 		echo -e "${YELLOW}ポートフォワードを停止中...${NC}"
-		kill $PID_ARGOCD $PID_ATLANTIS $PID_TRAEFIK 2>/dev/null || true
+		kill $PID_ARGOCD $PID_ATLANTIS $PID_TRAEFIK $PID_GRAFANA $PID_PROMETHEUS 2>/dev/null || true
 		echo -e "${GREEN}✓ 停止しました${NC}"
 		exit 0
 	}
@@ -91,11 +116,17 @@ atlantis)
 traefik)
 	forward_traefik
 	;;
+grafana)
+	forward_grafana
+	;;
+prometheus)
+	forward_prometheus
+	;;
 all)
 	forward_all
 	;;
 *)
-	echo "使い方: $0 {argocd|atlantis|traefik|all}"
+	echo "使い方: $0 {argocd|atlantis|traefik|grafana|prometheus|all}"
 	exit 1
 	;;
 esac

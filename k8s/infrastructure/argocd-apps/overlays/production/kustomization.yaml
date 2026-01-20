@@ -2,14 +2,25 @@
 # Production Environment Overlay
 # =============================================================================
 # This overlay patches the base applications with production-specific values.
+# Excludes monitoring-nodeports (vagrant only).
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 namespace: argocd
 
+# Explicitly list resources to exclude monitoring-nodeports
 resources:
-  - ../../base
+  - ../../base/sealed-secrets.yaml
+  - ../../base/cni.yaml
+  - ../../base/metallb.yaml
+  - ../../base/cert-manager.yaml
+  - ../../base/cert-manager-resources.yaml
+  - ../../base/traefik.yaml
+  - ../../base/argocd-ingress.yaml
+  - ../../base/atlantis.yaml
+  - ../../base/kube-prometheus-stack.yaml
+  # monitoring-nodeports.yaml is excluded (vagrant only)
 
 patches:
   # MetalLB Config - production overlay path
@@ -65,3 +76,12 @@ patches:
       - op: replace
         path: /spec/source/path
         value: k8s/infrastructure/traefik/overlays/production
+
+  # Grafana Ingress - production overlay path
+  - target:
+      kind: Application
+      name: grafana-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/grafana/overlays/production
