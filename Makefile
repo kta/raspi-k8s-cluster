@@ -353,6 +353,7 @@ setup-all-vagrant: ## 【Vagrant環境】全フェーズを一括実行（Phase 
 	$(MAKE) env-info ENV=vagrant
 	$(MAKE) generate-tfvars ENV=vagrant
 	$(MAKE) validate-setup ENV=vagrant
+	vagrant destroy -f
 	$(MAKE) vagrant-up
 	$(MAKE) ansible-setup-vagrant
 	$(MAKE) fetch-kubeconfig-vagrant

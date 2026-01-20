@@ -34,7 +34,15 @@
       "Bash(for dir in */)",
       "Bash(do git mv \"$dir\" ../infrastructure/)",
       "Bash(done)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(helm repo add:*)",
+      "Bash(helm repo update:*)",
+      "Bash(helm search repo:*)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(kubectl annotate:*)"
     ]
   }
 }

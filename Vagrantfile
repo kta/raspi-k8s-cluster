@@ -7,7 +7,7 @@ Vagrant.configure("2") do |config|
   
   # 3台共通のリソース設定 (K8sは最低2GB必要)
   config.vm.provider "virtualbox" do |vb|
-    vb.memory = "2048"
+    vb.memory = "4096"
     vb.cpus = 2
     # Apple Silicon対策: ネットワークアダプタ設定を最適化
     vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
