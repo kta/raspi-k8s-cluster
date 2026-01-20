@@ -125,6 +125,16 @@ make status
 # http://localhost:3000   (Grafana)
 # http://localhost:9090   (Prometheus)
 
+- 監視スタック (NodePort):                                                                            
+  - Grafana: http://192.168.56.101:30300                                                              
+    - ユーザー: admin                                                                                 
+    - パスワード: admin                                                                               
+  - Prometheus: http://192.168.56.101:30900                                                           
+  - Alertmanager: http://192.168.56.101:30093                                                         
+                                                                                                      
+- ArgoCD:                                                                                             
+  - ArgoCD UI: http://192.168.56.101:30080        
+
 # 4. 環境破棄
 make vagrant-destroy
 ```
