@@ -56,3 +56,12 @@ patches:
       - op: replace
         path: /spec/source/path
         value: k8s/infrastructure/atlantis/overlays/vagrant
+
+  # Traefik Middleware - vagrant overlay path (includes dashboard)
+  - target:
+      kind: Application
+      name: traefik-middleware
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/traefik/overlays/vagrant
