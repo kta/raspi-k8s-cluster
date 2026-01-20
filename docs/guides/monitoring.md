@@ -137,6 +137,93 @@ Grafanaには以下のダッシュボードが自動でインポートされま�
 Dashboard → Import → ID: 315 → Load → Select Prometheus → Import
 ```
 
+## 自動プロビジョニングされたカスタムダッシュボード
+
+以下のカスタムダッシュボードが自動的にインポートされます：
+
+### クラスタ監視
+- **Kubernetes Cluster Overview**: クラスタ全体の健全性とリソース使用状況
+  - ノード数（Ready/NotReady）
+  - クラスタ全体のCPU/メモリ使用率
+  - Pod数（Total/Running）
+  - トップリソース消費Pod
+
+### ノード詳細
+- **Kubernetes Node Details**: 各ノードの詳細メトリクス
+  - CPU使用率とロードアベレージ
+  - メモリ使用量（Used/Buffers/Cached/Free）
+  - ディスク使用率とI/O
+  - ネットワークトラフィック
+  - 温度センサー（Raspberry Pi）
+  - システムアップタイム
+
+### Pod/コンテナ監視
+- **Kubernetes Pod Monitoring**: Pod別のリソース監視
+  - Pod別CPU/メモリ使用量
+  - コンテナ再起動回数
+  - Pod状態（Running/Pending/Failed）
+  - リソースリクエスト vs 実使用量
+
+### OOMキラー監視
+- **Kubernetes OOM Killer Monitor**: メモリ不足の監視
+  - OOMキラー発生回数（1時間/24時間）
+  - OOMKilledされたPod一覧
+  - メモリ圧迫状態のノード
+  - コンテナメモリ使用率（リミット比）
+
+### ネットワークトラフィック
+- **Kubernetes Network Traffic**: ネットワーク統計
+  - ノード別Ingress/Egressトラフィック
+  - ネットワークエラー・ドロップ
+  - Pod別ネットワーク使用量
+  - Traefik Ingressメトリクス（リクエスト率、レスポンスコード）
+
+### ストレージ
+- **Kubernetes Storage**: PV/PVC監視
+  - PV/PVC数と状態
+  - PVC使用率詳細
+  - ストレージ使用量トレンド
+  - Inode使用状況
+
+## カスタムPrometheusアラート
+
+以下のカスタムアラートルールが自動設定されています：
+
+### クラスタヘルス
+- **NodeDown**: ノードがダウン（2分以上）
+- **NodeNotReady**: ノードがNotReady状態（5分以上）
+
+### リソース使用率
+- **HighCPUUsage**: CPU使用率 > 80%（5分間）
+- **CriticalCPUUsage**: CPU使用率 > 95%（3分間）
+- **HighMemoryUsage**: メモリ使用率 > 85%（5分間）
+- **CriticalMemoryUsage**: メモリ使用率 > 95%（2分間）
+
+### ディスク・ストレージ
+- **DiskSpaceLow**: ディスク使用率 > 85%（5分間）
+- **DiskSpaceCritical**: ディスク使用率 > 95%（2分間）
+- **PVCAlmostFull**: PVC使用率 > 80%（5分間）
+
+### OOMキラー
+- **OOMKillerActive**: OOMキラーが発動
+- **PodOOMKilled**: PodがOOMで終了
+- **ContainerMemoryNearLimit**: コンテナメモリがリミットの90%超（5分間）
+
+### Pod健全性
+- **PodCrashLooping**: Podが再起動ループ（15分間で複数回）
+- **PodNotReady**: PodがReady状態でない（10分以上）
+
+### ネットワーク
+- **HighNetworkErrors**: ネットワークエラー率が高い（5分間）
+- **HighNetworkDrops**: パケットドロップ率が高い（5分間）
+
+アラートの確認：
+```bash
+# Prometheus UIでアラート確認
+# Status → Rules → custom-rules
+```
+
+
 ## メトリクスクエリ例
 
 Prometheus UIまたはGrafanaで以下のクエリを実行できます：
