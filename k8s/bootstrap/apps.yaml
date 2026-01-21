@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: user-apps
+  namespace: argocd
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/kta/raspi-k8s-cluster.git
+        revision: main
+        directories:
+          - path: k8s/applications/*
+  template:
+    metadata:
+      name: "{{path.basename}}"
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: "10"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/kta/raspi-k8s-cluster.git
+        targetRevision: main
+        path: "{{path}}"
+        helm:
+          valueFiles:
+            - values.yaml
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

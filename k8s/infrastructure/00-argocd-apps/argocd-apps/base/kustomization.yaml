@@ -33,4 +33,3 @@ resources:
   - monitoring-nodeports.yaml
   - monitoring-config.yaml
   - cloudnative-pg.yaml
-  - postgres.yaml
