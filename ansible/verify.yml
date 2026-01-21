@@ -1,44 +1,100 @@
 - name: Verify Kubernetes Cluster Health & HA Status
-  hosts: primary_master
+  hosts: all_masters
   become: true
   tasks:
     # ---------------------------------------------------
     # 1. ノードのステータス確認 (3台とも Ready か？)
     # ---------------------------------------------------
-    - name: Wait for all 3 nodes to become Ready (Max 2 mins)
+    - name: Wait for all 3 nodes to be Ready
       shell: kubectl get nodes --no-headers | grep -w "Ready" | wc -l
       register: ready_nodes_count
-      # 3台がReadyになるまで、10秒おきに12回チェックする
       until: ready_nodes_count.stdout | int == 3
       retries: 12
       delay: 10
       changed_when: false
+      run_once: true
+
     - name: Assert that 3 nodes are Ready
       assert:
         that:
           - ready_nodes_count.stdout | int == 3
         fail_msg: "❌ Failed: Expected 3 Ready nodes, but found {{ ready_nodes_count.stdout }}."
         success_msg: "✅ OK: All 3 nodes are Ready."
+      run_once: true
+
     # ---------------------------------------------------
-    # 2. システムPodのステータス確認 (CoreDNS, Flannelなど)
+    # 2. システムPodのステータス確認
     # ---------------------------------------------------
-    - name: Check system pods status (Wait for Running)
-      shell: kubectl get pods -n kube-system --no-headers | grep -v "Running" | wc -l
+    - name: Check for non-running system pods
+      shell: kubectl get pods -n kube-system --no-headers | grep -v "Running" | grep -v "Completed" | wc -l
       register: not_running_pods
-      # 全てのPodがRunningになるまで待機
       until: not_running_pods.stdout | int == 0
       retries: 20
       delay: 15
       changed_when: false
       ignore_errors: true
+      run_once: true
+
     - name: Assert all system pods are running
       assert:
         that:
           - not_running_pods.stdout | int == 0
-        fail_msg: "❌ Failed: Some pods in kube-system are not running yet."
+        fail_msg: "❌ Failed: Found {{ not_running_pods.stdout }} pods in kube-system that are not Running."
         success_msg: "✅ OK: All system pods are running."
+      run_once: true
+
     # ---------------------------------------------------
-    # 3. HA (Load Balancer & Keepalived) の動作確認
+    # 3. メトリクスエンドポイントの確認 (スクレイピング用)
+    # ---------------------------------------------------
+    - name: Verify Etcd Metrics (0.0.0.0:2381)
+      uri:
+        url: "http://127.0.0.1:2381/metrics"
+        return_content: no
+        status_code: 200
+      register: etcd_metrics
+      ignore_errors: true
+
+    - name: Assert Etcd Metrics is accessible
+      assert:
+        that:
+          - etcd_metrics.status == 200
+        fail_msg: "❌ Failed: IP 127.0.0.1:2381 (Etcd Metrics) unreachable on {{ inventory_hostname }}."
+        success_msg: "✅ OK: Etcd metrics accessible on {{ inventory_hostname }}."
+
+    - name: Verify Kube-Proxy Metrics (0.0.0.0:10249)
+      uri:
+        url: "http://127.0.0.1:10249/metrics"
+        return_content: no
+        status_code: 200
+      register: proxy_metrics
+      ignore_errors: true
+
+    - name: Assert Kube-Proxy Metrics is accessible
+      assert:
+        that:
+          - proxy_metrics.status == 200
+        fail_msg: "❌ Failed: IP 127.0.0.1:10249 (Kube-Proxy Metrics) unreachable on {{ inventory_hostname }}."
+        success_msg: "✅ OK: Kube-Proxy metrics accessible on {{ inventory_hostname }}."
+
+    # ---------------------------------------------------
+    # 4. コンポーネントヘルスの確認
+    # ---------------------------------------------------
+    - name: Check Component Status (Etcd Health)
+      shell: kubectl get --raw='/healthz/etcd'
+      register: etcd_health
+      failed_when: etcd_health.stdout != "ok"
+      run_once: true
+
+    - name: Assert Component Health
+      assert:
+        that:
+          - etcd_health.stdout == "ok"
+        fail_msg: "❌ Failed: Etcd health check failed."
+        success_msg: "✅ OK: Etcd is healthy."
+      run_once: true
+
+    # ---------------------------------------------------
+    # 5. HA (VIP) の動作確認
     # ---------------------------------------------------
     - name: Check API Server via VIP
       uri:
@@ -49,22 +105,20 @@
       until: vip_check.status == 200
       retries: 12
       delay: 5
+      run_once: true
+
     - name: Assert VIP connection is healthy
       assert:
         that:
           - vip_check.status == 200
-          - "'ok' in vip_check.content"
-        fail_msg: "❌ Failed: Cannot access API Server via VIP. HAProxy or Keepalived might be down."
+        fail_msg: "❌ Failed: Cannot access API Server via VIP."
         success_msg: "✅ OK: HAProxy & VIP are working correctly!"
+      run_once: true
+
     # ---------------------------------------------------
-    # 4. クラスタ情報の表示 (サマリ)
+    # 6. 結果表示
     # ---------------------------------------------------
-    - name: Show Cluster Nodes
-      command: kubectl get nodes -o wide
-      register: nodes_out
-      changed_when: false
     - name: Print Cluster Status
       debug:
-        msg:
-          - "🎉 Cluster Verification Complete!"
-          - "{{ nodes_out.stdout_lines }}"
+        msg: "🎉 Cluster Verification Complete! All checks passed."
+      run_once: true

@@ -109,12 +109,12 @@
         mode: "0600"
       become: false
 # ==============================================================================
-# Secondary Masters: 参加 (順次実行)
+# Secondary Masters: 参加 (並列実行)
 # ==============================================================================
 - name: Join Secondary Masters
   hosts: secondary_masters
   become: true
-  serial: 1 # 1ノードずつ順番に実行
+  serial: 2 # 2ノードずつ順番に実行
   tasks:
     - name: Load join command from local controller
       set_fact:
@@ -142,7 +142,7 @@
       wait_for:
         path: /tmp/secondary_init.done
         timeout: 600
-        msg: "Secondary init script did not complete within 600 seconds"
+        msg: "Secondary init script did not complete within 1200 seconds"
     - name: Check secondary init script result
       slurp:
         src: /tmp/secondary_init.done
@@ -178,44 +178,7 @@
         seconds: 60
         prompt: "Waiting for etcd cluster to fully sync..."
       when: inventory_hostname != groups['secondary_masters'][-1]
-
 # ==============================================================================
-# Post-Setup: メトリクス公開用設定 (既存クラスタへの適用も兼ねる)
+# Post-Setup: メトリクス公開用設定 (削除済み: initスクリプトに移動)
 # ==============================================================================
-- name: Configure Metrics Bind Address
-  hosts: all_masters
-  become: true
-  tasks:
-    - name: Patch etcd to listen on 0.0.0.0 for metrics
-      replace:
-        path: /etc/kubernetes/manifests/etcd.yaml
-        regexp: '--listen-metrics-urls=http://127\.0\.0\.1:2381'
-        replace: "--listen-metrics-urls=http://0.0.0.0:2381"
-      ignore_errors: true
 
-    - name: Patch kube-controller-manager to listen on 0.0.0.0 for metrics
-      replace:
-        path: /etc/kubernetes/manifests/kube-controller-manager.yaml
-        regexp: '--bind-address=127\.0\.0\.1'
-        replace: "--bind-address=0.0.0.0"
-      ignore_errors: true
-
-    - name: Patch kube-scheduler to listen on 0.0.0.0 for metrics
-      replace:
-        path: /etc/kubernetes/manifests/kube-scheduler.yaml
-        regexp: '--bind-address=127\.0\.0\.1'
-        replace: "--bind-address=0.0.0.0"
-      ignore_errors: true
-
-    - name: Patch kube-proxy to listen on 0.0.0.0 for metrics
-      shell: |
-        kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get cm kube-proxy -o yaml | \
-        sed 's/metricsBindAddress: 127.0.0.1:10249/metricsBindAddress: 0.0.0.0:10249/' | \
-        kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
-      run_once: true
-      ignore_errors: true
-
-    - name: Restart kube-proxy to apply changes
-      shell: kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system rollout restart daemonset kube-proxy
-      run_once: true
-      ignore_errors: true

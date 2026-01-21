@@ -5,60 +5,83 @@
   # 変数は inventory.ini から読み込む
   # 実行時に -e "target_version=1.32.0-1.1" のように指定する想定
   tasks:
+    # --- 0. 事前チェック ---
+    - name: Pre-flight check - Check for Ready nodes
+      shell: kubectl get nodes --no-headers | grep -v "Ready" | wc -l
+      register: not_ready_nodes
+      delegate_to: "{{ groups['primary_master'][0] }}"
+      run_once: true
+      failed_when: not_ready_nodes.stdout | int > 0
+      ignore_errors: true # 警告だけに留める場合は true
+
     # --- 1. 準備: ノードをメンテナンスモードにする ---
     - name: Cordon and Drain node (Evict workloads)
       shell: kubectl drain {{ ansible_hostname }} --ignore-daemonsets --delete-emptydir-data --force
-      delegate_to: "{{ groups['primary_master'][0] }}" # コマンドはPrimaryから打つ
+      delegate_to: "{{ groups['primary_master'][0] }}"
       register: drain_result
       until: drain_result.rc == 0
       retries: 5
       delay: 10
       ignore_errors: true # 既にDrainされている場合のエラー回避
+
     # --- 2. リポジトリの更新 (マイナーバージョンアップ時のみ必要) ---
-    # ※ pkgs.k8s.io はバージョンごとにURLが違うため、
-    #    メジャー.マイナー (例: 1.32) に合わせたリスト更新が必要です。
-    #    ここでは簡略化のため、既存リポジトリにパッケージがあると仮定するか、
-    #    別途 common_setup.sh のロジックで repo を更新するタスクが必要です。
+    # NOTE: pkgs.k8s.io はバージョンごとにURLが違うため、
+    # メジャーバージョンが上がる場合は apt リポジトリの更新が必要です。
+    # ここでは同一メジャーバージョン内のパッチ適用を想定しています。
 
     # --- 3. kubeadm のアップグレード ---
     - name: Unhold kubeadm
       command: apt-mark unhold kubeadm
+
     - name: Install new kubeadm
       apt:
         name: "kubeadm={{ target_version }}"
         state: present
         update_cache: true
+
     - name: Hold kubeadm again
       command: apt-mark hold kubeadm
+
     - name: Verify kubeadm version
       command: kubeadm version
       register: kubeadm_ver
+
     - name: Display kubeadm version
       debug:
         msg: "{{ kubeadm_ver.stdout }}"
+
     # --- 4. アップグレードプランの適用 ---
-    # Primary Master と Secondary Master でコマンドが違う
     - name: Upgrade Apply (Primary Master Only)
       command: "kubeadm upgrade apply v{{ target_version | regex_replace('-.*', '') }} -y"
-      when: inventory_hostname in groups['primary_master']
+      when: inventory_hostname == groups['primary_master'][0]
+
     - name: Upgrade Node (Secondary Masters)
       command: "kubeadm upgrade node"
-      when: inventory_hostname in groups['secondary_masters']
+      when: inventory_hostname != groups['primary_master'][0]
+
     # --- 5. kubelet & kubectl のアップグレード ---
     - name: Unhold kubelet kubectl
       command: apt-mark unhold kubelet kubectl
+
     - name: Install new kubelet & kubectl
       apt:
         name:
           - "kubelet={{ target_version }}"
           - "kubectl={{ target_version }}"
         state: present
+
     - name: Hold kubelet kubectl again
       command: apt-mark hold kubelet kubectl
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
     - name: Restart Kubelet
       service:
         name: kubelet
         state: restarted
+
     # --- 6. 復帰: メンテナンスモード解除 ---
     - name: Uncordon node (Bring back to cluster)
       shell: kubectl uncordon {{ ansible_hostname }}

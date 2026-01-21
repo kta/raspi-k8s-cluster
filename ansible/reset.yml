@@ -2,27 +2,41 @@
   hosts: all_masters
   become: true
   tasks:
-    - name: Reset Kubeadm (Force)
-      command: kubeadm reset -f
-      ignore_errors: true
-    - name: Stop and Disable Services
+    - name: Stop services before reset
       service:
         name: "{{ item }}"
         state: stopped
-        enabled: false
-      loop: [haproxy, keepalived]
+      loop:
+        - kubelet
+        - haproxy
+        - keepalived
       ignore_errors: true
+
+    - name: Reset Kubeadm (Force)
+      command: kubeadm reset -f
+      ignore_errors: true
+
     - name: Remove Packages (Optional - Clean slate)
       apt:
         name: [haproxy, keepalived, kubelet, kubeadm, kubectl]
         state: absent
         purge: true
       ignore_errors: true
+
+    - name: Delete CNI interfaces (cni0)
+      command: ip link delete cni0
+      ignore_errors: true
+
+    - name: Delete Flannel interface (flannel.1)
+      command: ip link delete flannel.1
+      ignore_errors: true
+
     - name: Clean CNI & IP Tables
       shell: |
         rm -rf /etc/cni/net.d
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
       ignore_errors: true
+
     - name: Remove Config Dirs & Files
       file:
         path: "{{ item }}"
@@ -31,10 +45,14 @@
         - /etc/kubernetes
         - /var/lib/etcd
         - /var/lib/kubelet
+        - /var/lib/dockershim
+        - /var/run/kubernetes
         - /root/.kube
         - /home/{{ ansible_user }}/.kube
         - /etc/haproxy
         - /etc/keepalived
+        - /opt/cni/bin
+
     - name: Remove Temporary Scripts & Tokens
       file:
         path: "{{ item }}"
@@ -42,4 +60,9 @@
       loop:
         - /tmp/common_setup.sh
         - /tmp/primary_init.sh
+        - /tmp/secondary_init.sh
         - /tmp/k8s_join_command.sh
+        - /tmp/kube-flannel.yml
+        - /tmp/flannel-patched.yml
+        - /tmp/secondary_init.done
+        - /tmp/secondary_init.log

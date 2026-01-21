@@ -35,12 +35,6 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 	sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/' /etc/kubernetes/manifests/kube-scheduler.yaml
 	sed -i 's|--listen-metrics-urls=http://127.0.0.1:2381|--listen-metrics-urls=http://0.0.0.0:2381|' /etc/kubernetes/manifests/etcd.yaml
 
-	echo "Patching kube-proxy to listen on 0.0.0.0 for metrics scraping..."
-	kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get cm kube-proxy -o yaml | \
-	sed 's/metricsBindAddress: 127.0.0.1:10249/metricsBindAddress: 0.0.0.0:10249/' | \
-	kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
-	kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system rollout restart daemonset kube-proxy
-
 	mkdir -p /root/.kube
 	cp -f /etc/kubernetes/admin.conf /root/.kube/config
 	chown root:root /root/.kube/config
@@ -94,6 +88,12 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 			exit 1
 		fi
 	fi
+
+	echo "Patching kube-proxy to listen on 0.0.0.0 for metrics scraping..."
+	kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get cm kube-proxy -o yaml | \
+	sed 's/metricsBindAddress:.*127\.0\.0\.1:10249/metricsBindAddress: 0.0.0.0:10249/' | \
+	kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
+	kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system rollout restart daemonset kube-proxy
 
 	# MasterにもPodを置けるようにTaint解除 (3台構成なら必須)
 	kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true

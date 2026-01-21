@@ -1,7 +1,5 @@
 # k8s Directory Structure Reference
 
-**最新構造（2026年1月リファクタリング v2）**
-
 ## 📁 Complete Directory Tree
 
 ```
