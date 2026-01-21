@@ -22,6 +22,7 @@ namespace: argocd
 resources:
   - sealed-secrets.yaml
   - cni.yaml
+  - local-path-provisioner.yaml
   - metallb.yaml
   - cert-manager.yaml
   - cert-manager-resources.yaml
