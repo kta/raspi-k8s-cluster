@@ -84,6 +84,7 @@ else
 			echo "Patching Controller Manager and Scheduler to listen on 0.0.0.0 for metrics scraping..."
 			sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/' /etc/kubernetes/manifests/kube-controller-manager.yaml
 			sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/' /etc/kubernetes/manifests/kube-scheduler.yaml
+			sed -i 's|--listen-metrics-urls=http://127.0.0.1:2381|--listen-metrics-urls=http://0.0.0.0:2381|' /etc/kubernetes/manifests/etcd.yaml
 			break
 		else
 			if [ "$i" -lt $MAX_RETRIES ]; then
