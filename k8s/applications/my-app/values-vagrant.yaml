@@ -1,0 +1,33 @@
+# Vagrant environment values for my-app
+
+# ArgoCD sync-wave
+argocd:
+  syncWave: "10"
+
+replicaCount: 1
+
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "1.25"
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# SealedSecret configuration for development
+# For Vagrant environment, we use simpler test values
+sealedSecret:
+  enabled: true
+  name: "" # Uses fullname by default
+  annotations:
+    sealedsecrets.bitnami.com/managed: "true"
+  encryptedData:
+    # Example encrypted data for development (replace with actual encrypted values)
+    # To generate: echo -n "dev-password" | kubeseal --raw --from-file=/dev/stdin --namespace default --name my-app
+    password: "REPLACE_WITH_ACTUAL_ENCRYPTED_VALUE"
+    api-key: "REPLACE_WITH_ACTUAL_ENCRYPTED_VALUE"

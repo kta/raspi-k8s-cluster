@@ -1,0 +1,11 @@
+# =============================================================================
+# Monitoring NodePorts - Vagrant Overlay
+# =============================================================================
+# NodePorts are only needed for Vagrant environment
+# Production uses LoadBalancer/Ingress instead
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base

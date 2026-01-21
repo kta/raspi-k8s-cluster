@@ -82,7 +82,7 @@ resource "kubernetes_manifest" "root_applicationset" {
           source = {
             repoURL        = var.git_repo_url
             targetRevision = var.git_revision
-            path           = "k8s/infrastructure/argocd-apps/overlays/{{.environment}}"
+            path           = "k8s/infrastructure/00-argocd-apps/argocd-apps/overlays/{{.environment}}"
           }
 
           destination = {

@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-custom-rules
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus-stack-prometheus
+    role: alert-rules
+data:
+  custom-rules.yaml: |
+    groups:
+      - name: cluster-health
+        interval: 30s
+        rules:
+          - alert: NodeDown
+            expr: up{job="node-exporter"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Node {{ $labels.instance }} is down"
+              description: "Node {{ $labels.instance }} has been down for more than 2 minutes."
+          
+          - alert: NodeNotReady
+            expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Node {{ $labels.node }} is not ready"
+              description: "Node {{ $labels.node }} has been in NotReady state for more than 5 minutes."
+
+      - name: resource-usage
+        interval: 30s
+        rules:
+          - alert: HighCPUUsage
+            expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage on {{ $labels.instance }}"
+              description: "CPU usage is above 80% (current: {{ $value | humanize }}%)"
+          
+          - alert: CriticalCPUUsage
+            expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+            for: 3m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Critical CPU usage on {{ $labels.instance }}"
+              description: "CPU usage is above 95% (current: {{ $value | humanize }}%)"
+          
+          - alert: HighMemoryUsage
+            expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage on {{ $labels.instance }}"
+              description: "Memory usage is above 85% (current: {{ $value | humanize }}%)"
+          
+          - alert: CriticalMemoryUsage
+            expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Critical memory usage on {{ $labels.instance }}"
+              description: "Memory usage is above 95% (current: {{ $value | humanize }}%)"
+
+      - name: disk-storage
+        interval: 30s
+        rules:
+          - alert: DiskSpaceLow
+            expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Low disk space on {{ $labels.instance }}"
+              description: "Disk usage is above 85% (current: {{ $value | humanize }}%)"
+          
+          - alert: DiskSpaceCritical
+            expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 95
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Critical disk space on {{ $labels.instance }}"
+              description: "Disk usage is above 95% (current: {{ $value | humanize }}%)"
+          
+          - alert: PVCAlmostFull
+            expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes * 100 > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is almost full"
+              description: "PVC usage is above 80% (current: {{ $value | humanize }}%)"
+
+      - name: oom-killer
+        interval: 30s
+        rules:
+          - alert: OOMKillerActive
+            expr: increase(node_vmstat_oom_kill[5m]) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: "OOM Killer active on {{ $labels.instance }}"
+              description: "OOM Killer has been triggered {{ $value }} times in the last 5 minutes on {{ $labels.instance }}"
+          
+          - alert: PodOOMKilled
+            expr: kube_pod_container_status_terminated_reason{reason="OOMKilled"} > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} in {{ $labels.namespace }} was OOM killed"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} was terminated due to OOM"
+          
+          - alert: ContainerMemoryNearLimit
+            expr: container_memory_working_set_bytes / container_spec_memory_limit_bytes > 0.9
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} is near memory limit"
+              description: "Container is using {{ $value | humanizePercentage }} of its memory limit"
+
+      - name: pod-health
+        interval: 30s
+        rules:
+          - alert: PodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} in {{ $labels.namespace }} is crash looping"
+              description: "Pod has restarted {{ $value }} times in the last 15 minutes"
+          
+          - alert: PodNotReady
+            expr: kube_pod_status_phase{phase!~"Running|Succeeded"} > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} in {{ $labels.namespace }} is not ready"
+              description: "Pod has been in {{ $labels.phase }} state for more than 10 minutes"
+
+      - name: network
+        interval: 30s
+        rules:
+          - alert: HighNetworkErrors
+            expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High network errors on {{ $labels.instance }}"
+              description: "Network interface {{ $labels.device }} is experiencing {{ $value }} errors/sec"
+          
+          - alert: HighNetworkDrops
+            expr: rate(node_network_receive_drop_total[5m]) + rate(node_network_transmit_drop_total[5m]) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High network packet drops on {{ $labels.instance }}"
+              description: "Network interface {{ $labels.device }} is dropping {{ $value }} packets/sec"
+
+      - name: recording-rules
+        interval: 30s
+        rules:
+          # CPU usage percentage per node
+          - record: instance:node_cpu_utilization:ratio
+            expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+          
+          # Memory usage percentage per node
+          - record: instance:node_memory_utilization:ratio
+            expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+          
+          # Disk usage percentage per node
+          - record: instance:node_disk_utilization:ratio
+            expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100
+          
+          # Network traffic per node (bytes/sec)
+          - record: instance:node_network_receive_bytes:rate5m
+            expr: rate(node_network_receive_bytes_total[5m])
+          
+          - record: instance:node_network_transmit_bytes:rate5m
+            expr: rate(node_network_transmit_bytes_total[5m])

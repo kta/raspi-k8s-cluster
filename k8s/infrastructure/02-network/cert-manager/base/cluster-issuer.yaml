@@ -1,0 +1,20 @@
+# =============================================================================
+# Let's Encrypt ClusterIssuer
+# =============================================================================
+# ACME server URL is set by environment-specific overlays.
+# Production uses Let's Encrypt production, Vagrant uses staging.
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory  # Will be replaced by overlay
+    email: admin@example.com  # Will be replaced by overlay
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: traefik

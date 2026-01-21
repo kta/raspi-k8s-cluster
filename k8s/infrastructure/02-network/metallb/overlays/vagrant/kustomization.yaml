@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: metallb-system
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: IPAddressPool
+      name: default
+    patch: |-
+      - op: replace
+        path: /spec/addresses/0
+        value: "192.168.56.200-192.168.56.220"

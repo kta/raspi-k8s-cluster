@@ -1,0 +1,6 @@
+# Kustomize replacements configuration for MetalLB
+nameReference:
+- kind: IPAddressPool
+  fieldSpecs:
+  - path: spec/ipAddressPools
+    kind: L2Advertisement

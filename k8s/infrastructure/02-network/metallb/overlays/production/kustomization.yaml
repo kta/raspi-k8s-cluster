@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: metallb-system
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: IPAddressPool
+      name: default
+    patch: |-
+      - op: replace
+        path: /spec/addresses/0
+        value: "192.168.1.200-192.168.1.220"
+  
+  # Override interface for production (Raspberry Pi uses eth0)
+  - target:
+      kind: L2Advertisement
+      name: default
+    patch: |-
+      - op: replace
+        path: /spec/interfaces/0
+        value: "eth0"

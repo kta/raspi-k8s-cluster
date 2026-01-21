@@ -78,9 +78,9 @@ fi
 
 echo "=== ファイル存在チェック ==="
 check_file "$INVENTORY_FILE" "Ansible インベントリファイル"
-check_file "$PROJECT_ROOT/k8s/infrastructure/metallb/base/kustomization.yaml" "MetalLB base kustomization"
-check_file "$PROJECT_ROOT/k8s/infrastructure/metallb/overlays/production/kustomization.yaml" "MetalLB production overlay"
-check_file "$PROJECT_ROOT/k8s/infrastructure/metallb/overlays/vagrant/kustomization.yaml" "MetalLB vagrant overlay"
+check_file "$PROJECT_ROOT/k8s/infrastructure/02-network/metallb/base/kustomization.yaml" "MetalLB base kustomization"
+check_file "$PROJECT_ROOT/k8s/infrastructure/02-network/metallb/overlays/production/kustomization.yaml" "MetalLB production overlay"
+check_file "$PROJECT_ROOT/k8s/infrastructure/02-network/metallb/overlays/vagrant/kustomization.yaml" "MetalLB vagrant overlay"
 check_file "$PROJECT_ROOT/scripts/generate_tfvars.sh" "tfvars生成スクリプト"
 check_file "$PROJECT_ROOT/k8s/bootstrap/root.yaml" "ApplicationSet定義"
 echo ""
@@ -100,7 +100,7 @@ fi
 echo ""
 
 echo "=== Kustomize overlay チェック ==="
-OVERLAY_FILE="$PROJECT_ROOT/k8s/infrastructure/metallb/overlays/$ENVIRONMENT/kustomization.yaml"
+OVERLAY_FILE="$PROJECT_ROOT/k8s/infrastructure/02-network/metallb/overlays/$ENVIRONMENT/kustomization.yaml"
 if [[ -f "$OVERLAY_FILE" ]]; then
 	OVERLAY_IP=$(grep "value:" "$OVERLAY_FILE" | awk '{print $2}' | tr -d '"')
 	check_value "$OVERLAY_IP" "$EXPECTED_METALLB_RANGE" "Kustomize overlay IPレンジ"
@@ -111,10 +111,10 @@ fi
 echo ""
 
 echo "=== ArgoCD Application チェック ==="
-ARGOCD_CONFIG="$PROJECT_ROOT/k8s/infrastructure/metallb/config.yaml"
+ARGOCD_CONFIG="$PROJECT_ROOT/k8s/infrastructure/02-network/metallb/config.yaml"
 if [[ -f "$ARGOCD_CONFIG" ]]; then
-	ARGOCD_PATH=$(grep "path: k8s/infrastructure/metallb/overlays" "$ARGOCD_CONFIG" | awk '{print $2}')
-	EXPECTED_PATH="k8s/infrastructure/metallb/overlays/$ENVIRONMENT"
+	ARGOCD_PATH=$(grep "path: k8s/infrastructure/02-network/metallb/overlays" "$ARGOCD_CONFIG" | awk '{print $2}')
+	EXPECTED_PATH="k8s/infrastructure/02-network/metallb/overlays/$ENVIRONMENT"
 
 	if [[ -n "$ARGOCD_PATH" ]]; then
 		check_value "$ARGOCD_PATH" "$EXPECTED_PATH" "ArgoCD Application path"

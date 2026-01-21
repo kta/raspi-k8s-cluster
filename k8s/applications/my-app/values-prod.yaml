@@ -1,0 +1,36 @@
+# Production environment values for my-app
+
+# ArgoCD sync-wave
+argocd:
+  syncWave: "10"
+
+replicaCount: 2
+
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "1.25"
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# SealedSecret configuration
+# NOTE: Replace the example encrypted data below with actual encrypted values
+# To generate encrypted data, use:
+#   echo -n "your-secret-value" | kubeseal --raw --from-file=/dev/stdin --namespace default --name my-app
+sealedSecret:
+  enabled: true
+  name: "" # Uses fullname by default
+  annotations:
+    sealedsecrets.bitnami.com/managed: "true"
+  encryptedData:
+    # Example encrypted data (replace with actual encrypted values)
+    # password: AgBy3i4OJSWK+PiTySYZZA9rO43cGDEqjTfPlnwIoDa...
+    # api-key: AgAR7bDj8fKLmNoPqRsTuVwXyZ1234567890abcdef...
+    password: "REPLACE_WITH_ACTUAL_ENCRYPTED_VALUE"
+    api-key: "REPLACE_WITH_ACTUAL_ENCRYPTED_VALUE"

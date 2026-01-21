@@ -1,0 +1,141 @@
+# =============================================================================
+# Bootstrap ApplicationSet Update for Helm Support
+# =============================================================================
+# このファイルは、root.yamlにHelm対応を追加するための変更案を記載しています。
+# 実際のApplicationSetはTerraformで管理されているため、
+# terraform/modules/argocd/applicationset.tfを更新する必要があります。
+#
+# 変更内容:
+# 1. 既存のインフラ用generator（Kustomize）を維持
+# 2. 新しいアプリケーション用generator（Helm）を追加
+# 3. 環境別valuesファイルの動的選択
+# =============================================================================
+
+# 提案する新しいApplicationSet構造（Terraformで実装）:
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: infra-root
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/component: applicationset
+    app.kubernetes.io/managed-by: terraform
+
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    # =============================================================================
+    # Generator 1: Infrastructure (既存 - Kustomize)
+    # =============================================================================
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/kta/raspi-k8s-cluster.git
+              revision: main
+              files:
+                - path: "k8s/bootstrap/values/${environment}.yaml"
+        template:
+          metadata:
+            name: "infra-{{.environment}}"
+            namespace: argocd
+            labels:
+              app.kubernetes.io/instance: root
+              app.kubernetes.io/part-of: infra
+              environment: "{{.environment}}"
+            finalizers:
+              - resources-finalizer.argocd.argoproj.io
+          spec:
+            project: default
+            source:
+              repoURL: https://github.com/kta/raspi-k8s-cluster.git
+              targetRevision: main
+              path: k8s/infrastructure/00-argocd-apps/argocd-apps/overlays/{{.environment}}
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: argocd
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
+              retry:
+                limit: 5
+                backoff:
+                  duration: 5s
+                  factor: 2
+                  maxDuration: 3m
+
+    # =============================================================================
+    # Generator 2: Applications (新規 - Helm)
+    # =============================================================================
+    - matrix:
+        generators:
+          # 環境設定を取得
+          - git:
+              repoURL: https://github.com/kta/raspi-k8s-cluster.git
+              revision: main
+              files:
+                - path: "k8s/bootstrap/values/${environment}.yaml"
+
+          # アプリケーションディレクトリを検出
+          - git:
+              repoURL: https://github.com/kta/raspi-k8s-cluster.git
+              revision: main
+              directories:
+                - path: "k8s/applications/*"
+
+        template:
+          metadata:
+            name: "app-{{.path.basename}}-{{.environment}}"
+            namespace: argocd
+            labels:
+              app.kubernetes.io/instance: "{{.path.basename}}"
+              app.kubernetes.io/part-of: applications
+              environment: "{{.environment}}"
+            finalizers:
+              - resources-finalizer.argocd.argoproj.io
+
+          spec:
+            project: default
+
+            source:
+              repoURL: https://github.com/kta/raspi-k8s-cluster.git
+              targetRevision: main
+              path: "{{.path.path}}"
+              helm:
+                valueFiles:
+                  - values.yaml
+                  - "values-{{.environment}}.yaml"
+
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: default # または values から取得
+
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
+              retry:
+                limit: 5
+                backoff:
+                  duration: 5s
+                  factor: 2
+                  maxDuration: 3m
+# =============================================================================
+# Terraform実装ガイド
+# =============================================================================
+#
+# 1. terraform/modules/argocd/applicationset.tf を更新
+# 2. 上記のYAMLをTerraform HCLに変換
+# 3. matrix generatorを使用して環境とアプリを組み合わせ
+# 4. helm.valueFiles で環境別valuesを指定
+#
+# 参考: https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Matrix/
+# =============================================================================

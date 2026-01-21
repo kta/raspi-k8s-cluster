@@ -127,7 +127,7 @@ echo "      - Windows: Import ca.crt to 'Trusted Root Certification Authorities'
 echo "      - Chrome: Settings > Privacy and security > Security > Manage certificates"
 echo ""
 echo "   3. Deploy cert-manager CA Issuer:"
-echo "      kubectl apply -f k8s/infrastructure/cert-manager-resources/base/ca-issuer.yaml"
+echo "      kubectl apply -f k8s/infrastructure/02-network/cert-manager-resources/base/ca-issuer.yaml"
 echo ""
 echo "   4. Verify domains:"
 if [[ "$ENVIRONMENT" == "vagrant" ]]; then

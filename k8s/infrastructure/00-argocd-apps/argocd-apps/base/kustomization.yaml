@@ -1,0 +1,33 @@
+# =============================================================================
+# Applications Base Kustomization
+# =============================================================================
+# This kustomization defines all infrastructure applications.
+# Resources are ordered by sync-wave annotations (managed in each app file).
+#
+# Order of deployment (via sync-wave):
+#   -9: sealed-secrets (secret encryption)
+#   -8: cni (network)
+#   -7: metallb (load balancer)
+#   -6: cert-manager (TLS certificates)
+#   -5: cert-manager-resources (cluster issuers)
+#   -4: traefik (ingress controller)
+#    0: argocd-ingress (ArgoCD UI access)
+#    1: atlantis (Terraform automation)
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - sealed-secrets.yaml
+  - cni.yaml
+  - metallb.yaml
+  - cert-manager.yaml
+  - cert-manager-resources.yaml
+  - traefik.yaml
+  - argocd-ingress.yaml
+  - atlantis.yaml
+  - kube-prometheus-stack.yaml
+  - monitoring-nodeports.yaml
+  - monitoring-config.yaml

@@ -260,13 +260,13 @@ make port-forward-prometheus
 
 ## 🔄 最近の更新（2026-01）
 
-### k8s構造の全面リファクタリング
-- ✅ **ApplicationSet導入**: 環境自動検出、単一エントリーポイント
-- ✅ **base/overlays分離**: DRY原則徹底、環境差分を最小化
-- ✅ **sync-wave管理**: 番号プレフィックス廃止、依存関係を明示
-- ✅ **完全自動化**: 手動パッチング不要、Git pushのみで完結
+### k8s構造の全面リファクタリング v3
+- ✅ **インフラのレイヤー化**: 00-04の5層構造で依存関係を明確化
+- ✅ **Kustomize→Helm移行**: Pure Helm構成でシンプルに
+- ✅ **SealedSecret統合**: 暗号化データをvaluesに直接埋め込み
+- ✅ **完全自動化**: ApplicationSetによる環境別自動デプロイ
 
-詳細は [k8s/MIGRATION.md](./k8s/MIGRATION.md) を参照。
+詳細は [k8s/REFACTORING_2026.md](./k8s/REFACTORING_2026.md) を参照。
 
 ## 📄 ライセンス
 
