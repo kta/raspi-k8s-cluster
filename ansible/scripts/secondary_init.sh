@@ -80,6 +80,10 @@ else
 		echo "Join attempt $i of $MAX_RETRIES..."
 		if eval "$JOIN_CMD --apiserver-advertise-address=${NODE_IP}"; then
 			echo "Successfully joined the cluster"
+
+			echo "Patching Controller Manager and Scheduler to listen on 0.0.0.0 for metrics scraping..."
+			sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/' /etc/kubernetes/manifests/kube-controller-manager.yaml
+			sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/' /etc/kubernetes/manifests/kube-scheduler.yaml
 			break
 		else
 			if [ "$i" -lt $MAX_RETRIES ]; then
