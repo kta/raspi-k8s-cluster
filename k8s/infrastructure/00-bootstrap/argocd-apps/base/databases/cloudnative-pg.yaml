@@ -1,0 +1,33 @@
+# =============================================================================
+# CloudNativePG Operator Application
+# =============================================================================
+# Kubernetes operator that covers the full lifecycle of a highly available
+# PostgreSQL database cluster with a primary/standby architecture.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  project: default
+
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    targetRevision: 1.25.0
+    helm:
+      releaseName: cloudnative-pg
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,42 @@
+# =============================================================================
+# Local Path Provisioner Application
+# =============================================================================
+# Provides a default StorageClass using host-local storage.
+# Essential for Vagrant and bare-metal envs without external storage.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-path-provisioner
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5" # Deploy before monitoring apps
+spec:
+  project: default
+
+  source:
+    repoURL: https://charts.containeroo.ch
+    chart: local-path-provisioner
+    targetRevision: 0.0.35
+    helm:
+      releaseName: local-path-provisioner
+      valuesObject:
+        storageClass:
+          create: true
+          defaultClass: true
+          name: local-path
+        nodePathMap:
+          - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+            paths:
+              - /var/lib/rancher/k3s/storage # Common path, or /opt/local-path-provisioner
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: local-path-storage
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

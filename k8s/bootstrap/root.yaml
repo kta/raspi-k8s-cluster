@@ -55,7 +55,7 @@ spec:
   generators:
     - git:
         repoURL: https://github.com/kta/raspi-k8s-cluster.git
-        revision: main  # Configured via Terraform: var.git_revision
+        revision: main # Configured via Terraform: var.git_revision
         files:
           # Terraform dynamically sets this based on var.environment
           # Example: k8s/bootstrap/values/vagrant.yaml
@@ -63,12 +63,12 @@ spec:
 
   template:
     metadata:
-      name: 'infra-{{.environment}}'
+      name: "infra-{{.environment}}"
       namespace: argocd
       labels:
         app.kubernetes.io/instance: root
         app.kubernetes.io/part-of: infra
-        environment: '{{.environment}}'
+        environment: "{{.environment}}"
       finalizers:
         - resources-finalizer.argocd.argoproj.io
 
@@ -77,8 +77,8 @@ spec:
 
       source:
         repoURL: https://github.com/kta/raspi-k8s-cluster.git
-        targetRevision: main  # Configured via Terraform: var.git_revision
-        path: k8s/infrastructure/argocd-apps/overlays/{{.environment}}
+        targetRevision: main # Configured via Terraform: var.git_revision
+        path: k8s/infrastructure/00-bootstrap/argocd-apps/overlays/{{.environment}}
 
       destination:
         server: https://kubernetes.default.svc

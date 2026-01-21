@@ -1,0 +1,31 @@
+# =============================================================================
+# Applications Base Kustomization
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  # System
+  - system/sealed-secrets.yaml
+  - system/local-path-provisioner.yaml
+
+  # Network
+  - network/cni.yaml
+  - network/metallb.yaml
+  - network/cert-manager.yaml
+  - network/cert-manager-resources.yaml
+  - network/traefik.yaml
+  - network/argocd-ingress.yaml
+
+  # Databases
+  - databases/cloudnative-pg.yaml
+
+  # Observability
+  - observability/kube-prometheus-stack.yaml
+  - observability/monitoring-nodeports.yaml
+  - observability/monitoring-config.yaml
+
+  # Ops
+  - ops/atlantis.yaml

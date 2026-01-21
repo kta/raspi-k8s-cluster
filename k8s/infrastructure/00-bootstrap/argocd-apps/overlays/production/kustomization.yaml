@@ -1,0 +1,87 @@
+# =============================================================================
+# Production Environment Overlay
+# =============================================================================
+# This overlay patches the base applications with production-specific values.
+# Excludes monitoring-nodeports (vagrant only).
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+# Explicitly list resources to exclude monitoring-nodeports
+resources:
+  - ../../base/sealed-secrets.yaml
+  - ../../base/cni.yaml
+  - ../../base/metallb.yaml
+  - ../../base/cert-manager.yaml
+  - ../../base/cert-manager-resources.yaml
+  - ../../base/traefik.yaml
+  - ../../base/argocd-ingress.yaml
+  - ../../base/atlantis.yaml
+  - ../../base/kube-prometheus-stack.yaml
+  # monitoring-nodeports.yaml is excluded (vagrant only)
+
+patches:
+  # MetalLB Config - production overlay path
+  - target:
+      kind: Application
+      name: metallb-config
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/02-network/metallb/overlays/production
+
+  # Cert-Manager Resources - production overlay path
+  - target:
+      kind: Application
+      name: cert-manager-resources
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/02-network/cert-manager-resources/overlays/production
+
+  # Traefik - production LoadBalancer IP
+  - target:
+      kind: Application
+      name: traefik
+    patch: |-
+      - op: replace
+        path: /spec/source/helm/valuesObject/service/annotations/metallb.universe.tf~1loadBalancerIPs
+        value: "192.168.1.200"
+
+  # ArgoCD Ingress - production overlay path
+  - target:
+      kind: Application
+      name: argocd-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/04-ops/argocd/overlays/production
+
+  # Atlantis Ingress - production overlay path
+  - target:
+      kind: Application
+      name: atlantis-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/04-ops/atlantis/overlays/production
+
+  # Traefik Middleware - production overlay path (includes dashboard)
+  - target:
+      kind: Application
+      name: traefik-middleware
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/02-network/traefik/overlays/production
+
+  # Grafana Ingress - production overlay path
+  - target:
+      kind: Application
+      name: grafana-ingress
+    patch: |-
+      - op: replace
+        path: /spec/source/path
+        value: k8s/infrastructure/03-observability/grafana/overlays/production

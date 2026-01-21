@@ -1,0 +1,28 @@
+# =============================================================================
+# Monitoring NodePorts Application (Vagrant only)
+# =============================================================================
+# Exposes monitoring services via NodePort for direct Vagrant access
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-nodeports
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/kta/raspi-k8s-cluster.git
+    targetRevision: main
+    path: k8s/infrastructure/03-observability/monitoring-nodeports/overlays/vagrant
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
