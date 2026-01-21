@@ -1,0 +1,11 @@
+cluster:
+  name: postgres-cluster
+  instances: 3
+  storage:
+    size: 1Gi
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      secret:
+        name: postgres-app-user

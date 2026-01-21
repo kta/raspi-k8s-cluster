@@ -32,3 +32,5 @@ resources:
   - kube-prometheus-stack.yaml
   - monitoring-nodeports.yaml
   - monitoring-config.yaml
+  - cloudnative-pg.yaml
+  - postgres.yaml
