@@ -30,6 +30,10 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 		--pod-network-cidr=10.244.0.0/16 \
 		--apiserver-advertise-address="${NODE_IP}"
 
+	echo "Patching Controller Manager and Scheduler to listen on 0.0.0.0 for metrics scraping..."
+	sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/' /etc/kubernetes/manifests/kube-controller-manager.yaml
+	sed -i 's/--bind-address=127.0.0.1/--bind-address=0.0.0.0/' /etc/kubernetes/manifests/kube-scheduler.yaml
+
 	mkdir -p /root/.kube
 	cp -f /etc/kubernetes/admin.conf /root/.kube/config
 	chown root:root /root/.kube/config
