@@ -71,8 +71,7 @@ terraform/bootstrap/*.auto.tfvars
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon[
-]
+Icon?
 
 # Thumbnails
 ._*

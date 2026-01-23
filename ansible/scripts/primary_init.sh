@@ -91,7 +91,7 @@ if [ ! -f /etc/kubernetes/admin.conf ]; then
 
 	echo "Patching kube-proxy to listen on 0.0.0.0 for metrics scraping..."
 	kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get cm kube-proxy -o yaml | \
-	sed 's/metricsBindAddress:.*127\.0\.0\.1:10249/metricsBindAddress: 0.0.0.0:10249/' | \
+	sed 's/metricsBindAddress: .*/metricsBindAddress: 0.0.0.0:10249/' | \
 	kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
 	kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system rollout restart daemonset kube-proxy
 
@@ -105,7 +105,15 @@ fi
 #    (既存クラスタへの追加時も、これでトークン切れを防げる)
 echo "Generating Join Token..."
 CMD=$(kubeadm token create --print-join-command)
-KEY=$(kubeadm init phase upload-certs --upload-certs | tail -1)
+# We need to capture the key. The output usually ends with the key.
+# Use grep to find the hex key (64 chars) to be safe.
+KEY=$(kubeadm init phase upload-certs --upload-certs 2>/dev/null | grep -E '^[0-9a-f]{64}$' | tail -1)
+
+if [ -z "$KEY" ]; then
+    echo "ERROR: Could not capture certificate key. upload-certs output:"
+    kubeadm init phase upload-certs --upload-certs
+    exit 1
+fi
 
 # ファイルに書き出し
 echo "$CMD --control-plane --certificate-key $KEY" >$TOKEN_FILE

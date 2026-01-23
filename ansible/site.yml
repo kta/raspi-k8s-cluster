@@ -109,12 +109,12 @@
         mode: "0600"
       become: false
 # ==============================================================================
-# Secondary Masters: 参加 (並列実行)
+# Secondary Masters: 参加 (逐次実行)
 # ==============================================================================
 - name: Join Secondary Masters
   hosts: secondary_masters
   become: true
-  serial: 2 # 2ノードずつ順番に実行
+  serial: 1 # 1ノードずつ順番に実行
   tasks:
     - name: Load join command from local controller
       set_fact:
